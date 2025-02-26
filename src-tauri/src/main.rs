@@ -14,24 +14,22 @@ use entity::*;
 #[tokio::main]
 async fn main() -> Result<()> {
     // Handle the Result and Option types
-    match imap_client::fetch_inbox_top() {
-        Ok(Some(body)) => println!("{}", body),
-        Ok(None) => println!("No message found"),
-        Err(e) => eprintln!("Error: {}", e),
-    }
+    let body = imap_client::fetch_inbox_top().unwrap().unwrap();
+
+    let message = imap_client::parse_email_to_message(&body, None)?;
 
     let db = db::init_db().await?;
 
-    let message = message::ActiveModel {
-        id: Set(1),
-        date: Set(chrono::Utc::now()),
-        subject: Set("Test Subject".to_owned()),
-        body: Set("This is the message body".to_owned()),
-        snippet: Set("This is the snippet".to_owned()),
-        clean_text: Set("This is the clean text".to_owned()),
-        clean_text_tokens_in: Set(0),
-        clean_text_tokens_out: Set(0),
-    };
+    // let message = message::ActiveModel {
+    //     id: Set(1),
+    //     date: Set(chrono::Utc::now()),
+    //     subject: Set("Test Subject".to_owned()),
+    //     body: Set("This is the message body".to_owned()),
+    //     snippet: Set("This is the snippet".to_owned()),
+    //     clean_text: Set("This is the clean text".to_owned()),
+    //     clean_text_tokens_in: Set(0),
+    //     clean_text_tokens_out: Set(0),
+    // };
 
     let inserted_message: message::Model = message.insert(&db).await?;
 

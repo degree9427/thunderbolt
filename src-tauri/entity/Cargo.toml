@@ -10,3 +10,4 @@ path = "src/mod.rs"
 
 [dependencies]
 sea-orm = { version = "1.1.6", features = ["macros"] }
+uuid = "1.14.0"

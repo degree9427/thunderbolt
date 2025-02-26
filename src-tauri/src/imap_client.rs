@@ -2,6 +2,55 @@ use std::env;
 
 use mailparse::MailHeaderMap;
 
+use anyhow::Result;
+use chrono::Utc;
+use entity::message;
+use sea_orm::ActiveModelBehavior;
+use sea_orm::ActiveValue::Set;
+
+pub fn parse_email_to_message(mail_body: &str, id: Option<i32>) -> Result<message::ActiveModel> {
+    // Parse the email
+    let parsed_mail = mailparse::parse_mail(mail_body.as_bytes())?;
+
+    // Extract subject (with fallback to empty string if not found)
+    let subject = parsed_mail
+        .headers
+        .get_first_value("Subject")
+        .unwrap_or_else(|| String::from(""));
+
+    // Extract date (with fallback to current time if not found or parsing fails)
+    let date = parsed_mail
+        .headers
+        .get_first_value("Date")
+        .and_then(|date_str| mailparse::dateparse(&date_str).ok())
+        .map(|timestamp| {
+            chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| Utc::now())
+        })
+        .unwrap_or_else(|| Utc::now());
+
+    // Get body content
+    let body = parsed_mail.get_body()?;
+
+    // Create a snippet (first 100 chars of body)
+    let snippet = body.chars().take(100).collect::<String>();
+
+    // For clean_text, we could do more sophisticated processing,
+    // but for now just use the body text
+    let clean_text = body.clone();
+
+    // Create the message model
+    let mut message = message::ActiveModel::new();
+    message.date = Set(date);
+    message.subject = Set(subject);
+    message.body = Set(body);
+    message.snippet = Set(snippet);
+    message.clean_text = Set(clean_text);
+    message.clean_text_tokens_in = Set(0); // Placeholder for token count
+    message.clean_text_tokens_out = Set(0); // Placeholder for token count
+
+    Ok(message)
+}
+
 fn dump(pfx: &str, pm: &mailparse::ParsedMail) {
     println!(">> Headers from {} <<", pfx);
     for h in &pm.headers {

@@ -36,6 +36,16 @@ cargo build --bin embed --release
 ./target/release/embed
 ```
 
+## Reset Database Migrations
+
+This will recreate the database deleting all data by rolling back all migrations and reapplying them.
+
+```sh
+sea-orm-cli migrate refresh
+```
+
+
+
 
 ## Generate Entities (Database Models)
 

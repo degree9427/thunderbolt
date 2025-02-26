@@ -946,7 +946,7 @@ checksum = "d38f2da7a0a2c4ccf0065be06397cc26a81f4e528be095826eee9d4adbb8c60f"
 dependencies = [
  "byteorder",
  "fnv",
- "uuid 1.13.2",
+ "uuid 1.14.0",
 ]
 
 [[package]]
@@ -1813,6 +1813,7 @@ name = "entity"
 version = "0.1.0"
 dependencies = [
  "sea-orm",
+ "uuid 1.14.0",
 ]
 
 [[package]]
@@ -4020,7 +4021,7 @@ dependencies = [
  "tqdm",
  "tracing",
  "tracing-subscriber",
- "uuid 1.13.2",
+ "uuid 1.14.0",
  "variantly",
  "vob",
 ]
@@ -4119,6 +4120,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tokenizers",
  "tokio",
+ "uuid 1.14.0",
 ]
 
 [[package]]
@@ -5761,7 +5763,7 @@ dependencies = [
  "rkyv_derive",
  "seahash",
  "tinyvec",
- "uuid 1.13.2",
+ "uuid 1.14.0",
 ]
 
 [[package]]
@@ -5941,7 +5943,7 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
- "uuid 1.13.2",
+ "uuid 1.14.0",
 ]
 
 [[package]]
@@ -6001,7 +6003,7 @@ dependencies = [
  "time",
  "tracing",
  "url",
- "uuid 1.13.2",
+ "uuid 1.14.0",
 ]
 
 [[package]]
@@ -6065,7 +6067,7 @@ dependencies = [
  "sea-query-derive",
  "serde_json",
  "time",
- "uuid 1.13.2",
+ "uuid 1.14.0",
 ]
 
 [[package]]
@@ -6081,7 +6083,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "time",
- "uuid 1.13.2",
+ "uuid 1.14.0",
 ]
 
 [[package]]
@@ -6646,7 +6648,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "url",
- "uuid 1.13.2",
+ "uuid 1.14.0",
  "webpki-roots",
 ]
 
@@ -6732,7 +6734,7 @@ dependencies = [
  "thiserror 2.0.11",
  "time",
  "tracing",
- "uuid 1.13.2",
+ "uuid 1.14.0",
  "whoami",
 ]
 
@@ -6775,7 +6777,7 @@ dependencies = [
  "thiserror 2.0.11",
  "time",
  "tracing",
- "uuid 1.13.2",
+ "uuid 1.14.0",
  "whoami",
 ]
 
@@ -6802,7 +6804,7 @@ dependencies = [
  "time",
  "tracing",
  "url",
- "uuid 1.13.2",
+ "uuid 1.14.0",
 ]
 
 [[package]]
@@ -7128,7 +7130,7 @@ dependencies = [
  "tray-icon",
  "url",
  "urlpattern",
- "uuid 1.13.2",
+ "uuid 1.14.0",
  "webkit2gtk",
  "webview2-com",
  "window-vibrancy",
@@ -7181,7 +7183,7 @@ dependencies = [
  "thiserror 2.0.11",
  "time",
  "url",
- "uuid 1.13.2",
+ "uuid 1.14.0",
  "walkdir",
 ]
 
@@ -7319,7 +7321,7 @@ dependencies = [
  "toml 0.8.20",
  "url",
  "urlpattern",
- "uuid 1.13.2",
+ "uuid 1.14.0",
  "walkdir",
 ]
 
@@ -8091,9 +8093,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.13.2"
+version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c1f41ffb7cf259f1ecc2876861a17e7142e63ead296f671f81f6ae85903e0d6"
+checksum = "93d59ca99a559661b96bf898d8fce28ed87935fd2bea9f05983c1464dd6c71b1"
 dependencies = [
  "getrandom 0.3.1",
  "serde",

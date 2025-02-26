@@ -11,7 +11,7 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Message::Table)
                     .if_not_exists()
-                    .col(pk_auto(Message::Id))
+                    .col(pk_uuid(Message::Id))
                     .col(timestamp(Message::Date))
                     .col(string(Message::Subject))
                     .col(text(Message::Body))
@@ -19,17 +19,6 @@ impl MigrationTrait for Migration {
                     .col(text(Message::CleanText))
                     .col(integer(Message::CleanTextTokensIn))
                     .col(integer(Message::CleanTextTokensOut))
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_index(
-                Index::create()
-                    .name("Message_pkey")
-                    .table(Message::Table)
-                    .col(Message::Id)
-                    .unique()
                     .to_owned(),
             )
             .await
