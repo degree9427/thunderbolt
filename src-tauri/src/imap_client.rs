@@ -1,15 +1,20 @@
 use std::env;
 
-use html2text::from_read;
-use mailparse::MailHeaderMap;
-
 use anyhow::Result;
 use chrono::Utc;
-use entity::message;
-use sea_orm::ActiveModelBehavior;
-use sea_orm::ActiveValue::Set;
+use entity::message::Message;
+use html2text::from_read;
+use mailparse::MailHeaderMap;
+use regex::Regex;
 
-pub fn parse_email_to_message(mail_body: &str, _id: Option<i32>) -> Result<message::ActiveModel> {
+fn remove_urls(input: &str) -> String {
+    let url_regex = Regex::new(r"https?://[^\s]+|www\.[^\s]+").unwrap();
+    let cleaned = url_regex.replace_all(input, "");
+    let whitespace_regex = Regex::new(r"\s+").unwrap();
+    whitespace_regex.replace_all(&cleaned, " ").to_string()
+}
+
+pub fn parse_email_to_message(mail_body: &str, _id: Option<i32>) -> Result<Message> {
     // Parse the email
     let parsed_mail = mailparse::parse_mail(mail_body.as_bytes())?;
 
@@ -32,9 +37,6 @@ pub fn parse_email_to_message(mail_body: &str, _id: Option<i32>) -> Result<messa
     // Get body content
     let body = parsed_mail.get_body()?;
 
-    // Create a snippet (first 100 chars of body)
-    let snippet = body.chars().take(100).collect::<String>();
-
     // Extract clean text based on content type
     let clean_text = if parsed_mail.ctype.mimetype.starts_with("text/html") {
         // Convert HTML to plain text
@@ -44,15 +46,22 @@ pub fn parse_email_to_message(mail_body: &str, _id: Option<i32>) -> Result<messa
         body.clone()
     };
 
-    // Create the message model
-    let mut message = message::ActiveModel::new();
-    message.date = Set(date);
-    message.subject = Set(subject);
-    message.body = Set(body);
-    message.snippet = Set(snippet);
-    message.clean_text = Set(clean_text);
-    message.clean_text_tokens_in = Set(0); // Placeholder for token count
-    message.clean_text_tokens_out = Set(0); // Placeholder for token count
+    let clean_text = remove_urls(&clean_text);
+
+    // Create a snippet (first 100 chars of body)
+    let snippet = clean_text.chars().take(100).collect::<String>();
+
+    // Create the message struct
+    let message = Message {
+        id: uuid::Uuid::new_v4(),
+        date,
+        subject,
+        body,
+        snippet,
+        clean_text,
+        clean_text_tokens_in: 0,  // Placeholder for token count
+        clean_text_tokens_out: 0, // Placeholder for token count
+    };
 
     Ok(message)
 }
@@ -93,7 +102,7 @@ fn dump(pfx: &str, pm: &mailparse::ParsedMail) {
     }
 }
 
-pub fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
+pub fn fetch_inbox_top(count: Option<usize>) -> anyhow::Result<Vec<Message>> {
     // Try to load from .env if present, continue if not found
     if let Ok(path) = env::var("CARGO_MANIFEST_DIR") {
         let env_path = std::path::Path::new(&path).join(".env");
@@ -117,31 +126,32 @@ pub fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
         .danger_skip_tls_verify(true)
         .connect()?;
 
-    let mut imap_session = client.login(&username, &password).map_err(|e| e.0)?;
+    let mut imap_session = client
+        .login(&username, &password)
+        .map_err(|e| anyhow::anyhow!(e.0))?;
 
-    imap_session.debug = true;
+    // imap_session.debug = true;
     imap_session.select("INBOX")?;
 
-    let messages = imap_session.fetch("1", "RFC822")?;
-    let message = if let Some(m) = messages.iter().next() {
-        m
-    } else {
-        return Ok(None);
-    };
+    let count = count.unwrap_or(10);
+    let fetch_range = format!("1:{}", count);
 
-    // extract the message's body
-    let body = message.body().expect("message did not have a body!");
-    let body = std::str::from_utf8(body)
-        .expect("message was not valid utf-8")
-        .to_string();
+    let messages = imap_session.fetch(&fetch_range, "RFC822")?;
+    let mut result: Vec<Message> = Vec::new();
 
-    let mail = mailparse::parse_mail(body.as_bytes()).unwrap();
-    dump("message", &mail);
+    for message in messages.iter() {
+        let body = message.body().expect("message did not have a body!");
+        let body = std::str::from_utf8(body)
+            .expect("message was not valid utf-8")
+            .to_string();
+
+        result.push(parse_email_to_message(&body, None)?);
+    }
 
     // be nice to the server and log out
     imap_session.logout()?;
 
-    Ok(Some(body))
+    Ok(result)
 }
 
 pub fn listen_for_emails() -> imap::error::Result<()> {

@@ -3,6 +3,14 @@ import { invoke } from '@tauri-apps/api/core'
 import { Message, streamText, tool, ToolInvocation } from 'ai'
 import { z } from 'zod'
 
+// @todo replace with the actual message type
+export type EmailMessage = {
+  id: string
+  subject: string
+  snippet: string
+  clean_text: string
+}
+
 export type ToolInvocationWithResult<T = object> = ToolInvocation & {
   result: T
 }
@@ -34,15 +42,15 @@ const p2 = `
       "text": "I found several Postmark receipts in your inbox. Here are the details of the receipts:",
       "results": [
         {
-          "id": "gmail/1234567890",
+          "id": "bef3aad4-731f-48c8-acd9-799f82a5f106",
           "type": "message"
         },
         {
-          "id": "gmail/1234567891",
+          "id": "29d52df1-2786-4f47-a53d-a23a33a07ebf",
           "type": "message"
         },
         {
-          "id": "gmail/1234567892",
+          "id": "f98bc38a-53ab-48bc-a6d1-4b122358385a",
           "type": "thread"
         },
         {
@@ -51,9 +59,7 @@ const p2 = `
         }
       ]
     }
-  
-    Note: you need to include the "gmail/" prefix for message and thread ids.
-    `
+`
 
 export const ollama = createOpenAI({
   baseURL: 'http://localhost:11434/v1',
@@ -115,8 +121,17 @@ export const aiFetchStreamingResponse = async (_requestInfoOrUrl: RequestInfo | 
           originalUserMessage: z.string().describe('The original user message that triggered this tool call.'),
         }),
         execute: async ({ query, originalUserMessage }) => {
-          // @todo
-          return 'No results found.'
+          const messages = await invoke<EmailMessage[]>('fetch_inbox_top', { count: 50 })
+          console.log('messages', messages)
+          return messages.map(
+            (message) => `
+            ID: ${message.id}
+            Type: Message
+            Subject: ${message.subject}
+            Snippet: ${message.snippet}
+            Body: ${message.clean_text}
+          `
+          )
         },
       }),
       answer: tool({

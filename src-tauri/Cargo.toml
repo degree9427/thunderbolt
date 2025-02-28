@@ -92,6 +92,7 @@ tokio-stream = "0.1.17"
 futures = "0.3.31"
 http = "1.2.0"
 tauri-plugin-process = "2"
+regex = "1.11.1"
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.

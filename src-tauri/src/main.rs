@@ -10,7 +10,7 @@ use sea_orm::ActiveModelTrait;
 use std::env;
 use tauri::{command, ActivationPolicy};
 
-use entity::*;
+use entity::{message::Message, *};
 
 #[command]
 fn get_openai_api_key() -> String {
@@ -32,7 +32,6 @@ fn get_openai_api_key() -> String {
     open_ai_api_key
 }
 
-// Add this new command to toggle dock visibility
 #[command]
 async fn toggle_dock_icon(app_handle: tauri::AppHandle, show: bool) -> Result<(), String> {
     if cfg!(target_os = "macos") {
@@ -48,6 +47,12 @@ async fn toggle_dock_icon(app_handle: tauri::AppHandle, show: bool) -> Result<()
     Ok(())
 }
 
+#[command]
+async fn fetch_inbox_top(count: Option<usize>) -> Result<Vec<Message>, String> {
+    println!("fetch_inbox_top {:?}", count);
+    imap_client::fetch_inbox_top(Some(3)).map_err(|e| e.to_string())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // This should be called as early in the execution of the app as possible
@@ -61,6 +66,7 @@ async fn main() -> Result<()> {
         .invoke_handler(tauri::generate_handler![
             get_openai_api_key,
             toggle_dock_icon, // Add the new command
+            fetch_inbox_top,
         ]);
 
     // Set the activation policy to accessory on macOS to prevent the app from being shown in the dock
@@ -83,9 +89,8 @@ async fn main() -> Result<()> {
         .expect("error while running tauri application");
 
     // Handle the Result and Option types
-    let body = imap_client::fetch_inbox_top().unwrap().unwrap();
-
-    let message = imap_client::parse_email_to_message(&body, None)?;
+    let messages = imap_client::fetch_inbox_top(Some(3)).unwrap();
+    let message = messages.first().unwrap();
 
     let db = db::init_db().await?;
 
@@ -100,7 +105,7 @@ async fn main() -> Result<()> {
     //     clean_text_tokens_out: Set(0),
     // };
 
-    let _: message::Model = message.insert(&db).await?;
+    let _: message::Model = message.clone().into_active_model().insert(&db).await?;
 
     let embedding = embedding::get_embedding("Hello, world!")?;
     println!("{:?}", embedding);

@@ -2,9 +2,9 @@ use mozilla_assist_lib::imap_client;
 
 fn main() {
     // Handle the Result and Option types
-    match imap_client::fetch_inbox_top() {
-        Ok(Some(body)) => println!("{}", body),
-        Ok(None) => println!("No message found"),
-        Err(e) => eprintln!("Error: {}", e),
+    let messages = imap_client::fetch_inbox_top(Some(3));
+    match messages {
+        Ok(msgs) => println!("Number of messages: {}", msgs.len()),
+        Err(e) => println!("Error fetching messages: {}", e),
     }
 }

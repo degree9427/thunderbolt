@@ -1,5 +1,5 @@
 import { ToolInvocationUIPart } from '@ai-sdk/ui-utils'
-import { ErrorBoundary, Match, Switch } from 'solid-js'
+import { ErrorBoundary, For, Match, Switch } from 'solid-js'
 
 export type AgentToolResponseProps = {
   part: ToolInvocationUIPart
@@ -24,6 +24,9 @@ export const AgentToolResponse = ({ part }: AgentToolResponseProps) => {
         <Match when={part.toolInvocation.toolName === 'answer' && part.toolInvocation.args?.text}>
           <div class="space-y-2">
             <div class="text-gray-700 leading-relaxed">{part.toolInvocation.args.text}</div>
+            <div class="space-y-2">
+              <For each={part.toolInvocation.args.results}>{(result) => <div class="text-gray-700 leading-relaxed bg-amber-100 p-2">{result}</div>}</For>
+            </div>
           </div>
         </Match>
         <Match when={part.toolInvocation.toolName === 'search' && part.toolInvocation.args?.query}>
