@@ -175,6 +175,7 @@ async fn main() -> Result<()> {
     let devtools = tauri_plugin_devtools::init();
 
     let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
