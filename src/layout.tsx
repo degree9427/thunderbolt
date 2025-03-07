@@ -3,6 +3,7 @@ import './index.css'
 import { JSXElement, onMount } from 'solid-js'
 
 import { appDataDir } from '@tauri-apps/api/path'
+import { db } from './db/database'
 import { initDb } from './lib/commands'
 import { createAppDataDir } from './lib/fs'
 import { createTray } from './lib/tray'
@@ -15,6 +16,13 @@ const init = async () => {
   const dbPath = `sqlite://${dataDir}/local.db?mode=rwc`
   console.log('Initializing database in', dbPath)
   initDb(dbPath)
+
+  db.query.settings
+    .findMany()
+    .execute()
+    .then((results) => {
+      console.log('🚀 ~ FindMany response from Drizzle:', results)
+    })
 }
 
 export default function App({ children }: { children?: JSXElement }) {
