@@ -1,36 +1,24 @@
 import { Field as ArkField } from '@ark-ui/solid'
-import { createForm, required, reset } from '@modular-forms/solid'
+import { createForm, required } from '@modular-forms/solid'
 
 import { Button } from '@/components/button'
 import { Card, CardContent } from '@/components/card'
 import { Input } from '@/components/input'
-import { useSettings } from '@/components/settings'
+import { useSettings } from '@/settings/provider'
 import { AccountsSettings } from '@/types'
-import { createEffect } from 'solid-js'
 
 export default function AccountsSettingsPage() {
-  const { settings, set } = useSettings()
+  const { settings, setSettings } = useSettings()
 
   const [formStore, { Form, Field }] = createForm<AccountsSettings>({
     initialValues: settings.account,
   })
 
-  createEffect(() => {
-    if (settings) {
-      reset(formStore, {
-        initialValues: {
-          hostname: '',
-          port: 3000,
-          username: '',
-          password: '',
-          ...settings.account,
-        },
-      })
-    }
-  })
-
   const handleSubmit = async (values: AccountsSettings) => {
-    await set('account', values)
+    setSettings({
+      ...settings,
+      account: values,
+    })
   }
 
   return (

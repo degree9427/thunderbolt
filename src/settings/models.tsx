@@ -1,33 +1,27 @@
 import { Field as ArkField } from '@ark-ui/solid'
-import { createForm, required, reset } from '@modular-forms/solid'
+import { createForm, required } from '@modular-forms/solid'
 
 import { Button } from '@/components/button'
 import { Card, CardContent } from '@/components/card'
 import { Input } from '@/components/input'
-import { useSettings } from '@/components/settings'
+import { useSettings } from '@/settings/provider'
 import { ModelsSettings } from '@/types'
-import { createEffect } from 'solid-js'
 
 export default function ModelsSettingsPage() {
-  const { settings, set, get } = useSettings()
+  const context = useSettings()
 
   const [formStore, { Form, Field }] = createForm<ModelsSettings>({
-    initialValues: settings?.models,
-  })
-
-  createEffect(() => {
-    if (settings) {
-      reset(formStore, {
-        initialValues: {
-          openai_api_key: '',
-          ...settings.models,
-        },
-      })
-    }
+    initialValues: {
+      openai_api_key: '',
+      ...context.settings.models,
+    },
   })
 
   const handleSubmit = async (values: ModelsSettings) => {
-    await set('models', values)
+    context.setSettings({
+      ...context.settings,
+      models: values,
+    })
   }
 
   return (
