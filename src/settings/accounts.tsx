@@ -7,12 +7,14 @@ import { useDrizzle } from '@/components/drizzle'
 import { Input } from '@/components/input'
 import { getSettings, setSettings } from '@/dal'
 import { Settings } from '@/types'
-import { createEffect, createResource, Show, Suspense } from 'solid-js'
+import { createEffect, createResource } from 'solid-js'
+
+type AccountSettings = Pick<Settings, 'hostname' | 'port' | 'username' | 'password'>
 
 export default function AccountsSettings() {
   const context = useDrizzle()
 
-  const [formStore, { Form, Field }] = createForm<Settings>({
+  const [formStore, { Form, Field }] = createForm<AccountSettings>({
     initialValues: {
       hostname: '127.0.0.1',
       port: 3000,
@@ -21,10 +23,9 @@ export default function AccountsSettings() {
     },
   })
 
-  const [initialSettings] = createResource<Settings>(() => getSettings(context.db, ['hostname', 'port', 'username', 'password']))
+  const [initialSettings] = createResource<AccountSettings>(() => getSettings<AccountSettings>(context.db, ['hostname', 'port', 'username', 'password']))
 
   createEffect(() => {
-    console.log('initialSettings', initialSettings())
     reset(formStore, {
       initialValues: initialSettings(),
     })
@@ -42,18 +43,7 @@ export default function AccountsSettings() {
       <div class="flex flex-col gap-4 p-4 max-w-[800px]">
         <Card>
           <CardContent>
-            <Suspense fallback={<div>Loading...</div>}>
-              <Show when={submitData.loading}>
-                <p>Loading...</p>
-              </Show>
-            </Suspense>
-            <Form
-              onSubmit={(e) => {
-                console.log('eee', e)
-                // setFormValues(e)
-              }}
-              class="flex flex-col gap-4"
-            >
+            <Form class="flex flex-col gap-4">
               <Field name="hostname" validate={[required('Hostname is required.')]}>
                 {(field, props) => {
                   console.log(props, field)

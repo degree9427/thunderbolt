@@ -28,13 +28,13 @@ export const setSettings = async (db: DrizzleContextType['db'], settings: Partia
   }
 }
 
-export const getSettings = async (db: DrizzleContextType['db'], keys: string[]): Promise<Partial<Settings>> => {
-  if (keys.length === 0) return {}
+export const getSettings = async <T extends Partial<Settings>>(db: DrizzleContextType['db'], keys: string[]): Promise<T> => {
+  if (keys.length === 0) return {} as T
 
   const res = await db.select().from(settingsTable).where(inArray(settingsTable.key, keys))
 
   return res.reduce((acc, item) => {
     acc[item.key as keyof Settings] = JSON.parse(item.value as string)
     return acc
-  }, {} as Partial<Settings>)
+  }, {} as T)
 }
