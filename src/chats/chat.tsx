@@ -5,16 +5,14 @@ import { LanguageModelResponseMetadata, Message } from 'ai'
 
 interface ChatProps {
   apiKey: string
-  initialMessages: () => any[]
+  initialMessages: Message[] | undefined
   maxSteps?: number
   onFinish?: (response: LanguageModelResponseMetadata & { readonly messages: Message[] }) => void
 }
 
 export default function Chat({ apiKey, initialMessages, maxSteps = 5, onFinish }: ChatProps) {
-  const messages = initialMessages()
-
   const chatHelpers = useChat({
-    initialMessages: messages,
+    initialMessages,
     fetch: (_requestInfoOrUrl: RequestInfo | URL, init?: RequestInit) => {
       if (!apiKey) {
         throw new Error('No API key found')
@@ -34,10 +32,6 @@ export default function Chat({ apiKey, initialMessages, maxSteps = 5, onFinish }
     },
     maxSteps,
   })
-
-  if (!messages) {
-    return <div>Loading chat...</div>
-  }
 
   return <ChatUI chatHelpers={chatHelpers} />
 }

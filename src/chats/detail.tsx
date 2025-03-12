@@ -1,9 +1,10 @@
 import { useDrizzle } from '@/db/provider'
 import { chatMessagesTable } from '@/db/schema'
 import { useSettings } from '@/settings/provider'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Message } from 'ai'
 import { eq } from 'drizzle-orm'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useParams } from 'react-router'
 import Chat from './chat'
 
@@ -11,46 +12,61 @@ export default function ChatDetailPage() {
   const params = useParams()
   const { db } = useDrizzle()
   const settingsContext = useSettings()
-  const [messages, setMessages] = useState<Message[] | null>(null)
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (!params.chatThreadId) return
+  // Use React Query to fetch messages
+  const {
+    data: messages,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['chatMessages', params.chatThreadId],
+    queryFn: async () => {
+      if (!params.chatThreadId) return null
 
       try {
         const chatMessages = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.chat_thread_id, params.chatThreadId)).orderBy(chatMessagesTable.id)
 
-        const formattedMessages = chatMessages.map((message) => ({
+        return chatMessages.map((message) => ({
           id: message.id,
           parts: message.parts,
           role: message.role,
           content: message.content,
           createdAt: new Date(message.id),
         }))
-
-        setMessages(formattedMessages)
       } catch (error) {
         console.error('Error fetching messages:', error)
-        setMessages(null)
+        throw error
       }
-    }
+    },
+    enabled: !!params.chatThreadId,
+  })
 
-    fetchMessages()
-  }, [db, params.chatThreadId])
+  const addMessageMutation = useMutation({
+    mutationFn: async (lastMessage: Message) => {
+      if (!params.chatThreadId) throw new Error('No chat thread ID')
+
+      return await db.insert(chatMessagesTable).values({
+        id: lastMessage.id,
+        parts: lastMessage.parts || [],
+        role: lastMessage.role,
+        content: lastMessage.content,
+        chat_thread_id: params.chatThreadId,
+        model: 'gpt-4o',
+        provider: 'openai',
+      })
+    },
+    onSuccess: () => {
+      // Invalidate and refetch messages after adding a new one
+      queryClient.invalidateQueries({ queryKey: ['chatMessages', params.chatThreadId] })
+    },
+  })
 
   const onFinish = async (response: { readonly messages: Array<Message> }) => {
     if (!params.chatThreadId) return
 
     const lastMessage = response.messages[response.messages.length - 1]
-    await db.insert(chatMessagesTable).values({
-      id: lastMessage.id,
-      parts: lastMessage.parts || [],
-      role: lastMessage.role,
-      content: lastMessage.content,
-      chat_thread_id: params.chatThreadId,
-      model: 'gpt-4o',
-      provider: 'openai',
-    })
+    await addMessageMutation.mutateAsync(lastMessage)
   }
 
   useEffect(() => {
@@ -60,7 +76,15 @@ export default function ChatDetailPage() {
   return (
     <>
       <div className="h-full w-full">
-        {messages ? <Chat apiKey={settingsContext.settings.models?.openai_api_key!} initialMessages={() => messages} onFinish={onFinish} /> : <div>Error loading chat</div>}
+        {isLoading ? (
+          <div>Loading chat...</div>
+        ) : isError ? (
+          <div>Error loading chat</div>
+        ) : messages ? (
+          <Chat key={params.chatThreadId} apiKey={settingsContext.settings.models?.openai_api_key!} initialMessages={messages} onFinish={onFinish} />
+        ) : (
+          <div>Error loading chat</div>
+        )}
       </div>
     </>
   )
