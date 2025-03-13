@@ -4,13 +4,15 @@ import { useDrizzle } from '@/db/provider'
 import { chatThreadsTable } from '@/db/schema'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Settings } from 'lucide-react'
-import { Link, Outlet, useNavigate } from 'react-router'
+import { Link, Outlet, useNavigate, useParams } from 'react-router'
 import { v7 as uuidv7 } from 'uuid'
 
 export function ChatLayout() {
   const navigate = useNavigate()
   const { db } = useDrizzle()
   const queryClient = useQueryClient()
+
+  const { chatThreadId: currentChatThreadId } = useParams()
 
   const { data: chatThreads = [] } = useQuery({
     queryKey: ['chatThreads'],
@@ -56,7 +58,7 @@ export function ChatLayout() {
           </div>
           <div className="flex flex-col gap-2">
             {chatThreads.map((thread) => (
-              <Button key={thread.id} asChild variant="ghost" className="justify-start">
+              <Button key={thread.id} asChild variant={thread.id === currentChatThreadId ? 'outline' : 'ghost'} className="justify-start">
                 <Link to={`/chats/${thread.id}`}>{thread.title}</Link>
               </Button>
             ))}
