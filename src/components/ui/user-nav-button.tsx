@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
-interface UserNavProps extends React.HTMLAttributes<HTMLDivElement> {
+interface UserNavButtonProps extends React.HTMLAttributes<HTMLDivElement> {
   username?: string
   userEmail?: string
 }
 
-export function UserNav({ username = 'John Doe', userEmail = 'john.doe@example.com', className, ...props }: UserNavProps) {
+export function UserNavButton({ username = 'John Doe', userEmail = 'john.doe@example.com', className, ...props }: UserNavButtonProps) {
   return (
     <div className={cn('relative', className)} {...props}>
       <Popover>

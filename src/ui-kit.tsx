@@ -4,7 +4,7 @@ import { Sidebar } from './components/sidebar'
 import { Button } from './components/ui/button'
 import { MailCard, MailCardList } from './components/ui/mail-card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select'
-import { UserNav } from './components/ui/user-nav'
+import { UserNavButton } from './components/ui/user-nav-button'
 
 export default function UiKitPage() {
   const fruitOptions = [
@@ -78,7 +78,7 @@ export default function UiKitPage() {
               <Link to="/settings/models">Models</Link>
             </Button>
           </div>
-          <UserNav />
+          <UserNavButton />
         </div>
       </Sidebar>
       <div className="flex flex-col gap-4 p-4 w-full">
