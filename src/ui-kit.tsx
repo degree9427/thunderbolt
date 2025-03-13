@@ -36,7 +36,7 @@ export default function UiKitPage() {
       <div className="flex flex-col gap-4 p-4 w-full">
         <h2 className="text-2xl font-bold mb-4">Select</h2>
         <Select>
-          <SelectTrigger>
+          <SelectTrigger variant="outline" size="lg">
             <SelectValue placeholder="Select a fruit" />
           </SelectTrigger>
           <SelectContent>
@@ -48,7 +48,7 @@ export default function UiKitPage() {
           </SelectContent>
         </Select>
         <Select>
-          <SelectTrigger className="border-dashed">
+          <SelectTrigger>
             <SelectValue placeholder="Select a fruit" />
           </SelectTrigger>
           <SelectContent>
