@@ -16,6 +16,9 @@ default-run = "mozilla-assist"
 name = "mozilla_assist_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[workspace]
+members = ["assist_imap_client"]
+
 [[bin]]
 name = "mozilla-assist"
 path = "src/main.rs"
@@ -86,6 +89,7 @@ base64 = "0.22.1"
 indexmap = "2.7.1"
 bytes = "1.10.1"
 mail-parser = { version = "0.10.2", features = ["serde_support"] }
+assist_imap_client = { path = "./assist_imap_client" }
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.

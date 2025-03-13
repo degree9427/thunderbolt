@@ -12,6 +12,8 @@ import { getSettings } from './dal'
 import { initializeDrizzleDatabase } from './db/database'
 import { migrate } from './db/migrate'
 import { DrizzleProvider } from './db/provider'
+import ImapClient from './imap/imap'
+import { ImapProvider } from './imap/provider'
 import Layout from './layout'
 import { createAppDataDir } from './lib/fs'
 import { useTray } from './lib/tray'
@@ -32,10 +34,24 @@ const init = async (): Promise<InitData> => {
 
   const settings = (await getSettings<SettingsType>(db, 'main')) || {}
 
+  const imap = new ImapClient()
+
+  if (settings.account) {
+    await imap.initialize({
+      hostname: settings.account.hostname,
+      port: settings.account.port,
+      username: settings.account.username,
+      password: settings.account.password,
+    })
+  } else {
+    console.warn('No IMAP account settings found')
+  }
+
   return {
     db,
     sqlite,
     settings,
+    imap,
   }
 }
 
@@ -55,28 +71,30 @@ export const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <DrizzleProvider context={{ db: initData.db, sqlite: initData.sqlite }}>
-        <SettingsProvider initialSettings={initData.settings} section="main">
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Layout />}>
-                {/* Home routes with HomeLayout */}
-                <Route element={<ChatLayout />}>
-                  <Route index element={<ChatNewPage />} />
-                  <Route path="chats/:chatThreadId" element={<ChatDetailPage />} />
-                </Route>
+        <ImapProvider client={initData.imap}>
+          <SettingsProvider initialSettings={initData.settings} section="main">
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Layout />}>
+                  {/* Home routes with HomeLayout */}
+                  <Route element={<ChatLayout />}>
+                    <Route index element={<ChatNewPage />} />
+                    <Route path="chats/:chatThreadId" element={<ChatDetailPage />} />
+                  </Route>
 
-                {/* Settings routes with SettingsLayout */}
-                <Route path="settings" element={<SettingsLayout />}>
-                  <Route index element={<Settings />} />
-                  <Route path="accounts" element={<AccountsSettingsPage />} />
-                  <Route path="models" element={<ModelsSettingsPage />} />
-                </Route>
+                  {/* Settings routes with SettingsLayout */}
+                  <Route path="settings" element={<SettingsLayout />}>
+                    <Route index element={<Settings />} />
+                    <Route path="accounts" element={<AccountsSettingsPage />} />
+                    <Route path="models" element={<ModelsSettingsPage />} />
+                  </Route>
 
-                <Route path="ui-kit" element={<UiKitPage />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </SettingsProvider>
+                  <Route path="ui-kit" element={<UiKitPage />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </SettingsProvider>
+        </ImapProvider>
       </DrizzleProvider>
     </QueryClientProvider>
   )

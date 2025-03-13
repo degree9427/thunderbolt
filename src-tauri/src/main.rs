@@ -5,10 +5,8 @@ mod libsql;
 mod state;
 
 use anyhow::Result;
-use mozilla_assist_lib::{
-    imap_client::{fetch_inbox as imap_fetch_inbox, messages_to_json_values},
-    settings::get_settings,
-};
+use assist_imap_client::{messages_to_json_values, ImapClient, ImapCredentials};
+use mozilla_assist_lib::settings::get_settings;
 use serde_json;
 use std::env;
 use tauri::{command, ActivationPolicy, Manager};
@@ -32,22 +30,62 @@ async fn toggle_dock_icon(app_handle: tauri::AppHandle, show: bool) -> Result<()
 }
 
 #[command]
-async fn list_mailboxes(app_handle: tauri::AppHandle) -> Result<serde_json::Value, String> {
+async fn init_imap(app_handle: tauri::AppHandle) -> Result<(), String> {
     let state = app_handle.state::<Mutex<AppState>>();
-    let settings = {
-        let mut state = state.lock().await;
-        let conn = state
-            .libsql
-            .as_mut()
-            .ok_or_else(|| "Database not initialized".to_string())?;
+    let mut state = state.lock().await;
 
-        get_settings(conn)
-            .await
-            .map_err(|e| format!("Failed to get settings: {}", e))?
+    // Get database connection
+    let conn = state
+        .libsql
+        .as_mut()
+        .ok_or_else(|| "Database not initialized".to_string())?;
+
+    // Get settings
+    let settings = get_settings(conn)
+        .await
+        .map_err(|e| format!("Failed to get settings: {}", e))?;
+
+    // Check if account settings exist
+    let account_settings = settings
+        .account
+        .ok_or_else(|| "Account settings not found".to_string())?;
+
+    // Create ImapCredentials from account settings
+    let credentials = ImapCredentials {
+        hostname: account_settings.hostname,
+        port: account_settings.port,
+        username: account_settings.username,
+        password: account_settings.password,
     };
 
-    // Call the list_mailboxes function from imap_client
-    let mailboxes = mozilla_assist_lib::imap_client::list_mailboxes(&settings)
+    // Create IMAP client
+    let imap_client = ImapClient::new(credentials);
+
+    // Test connection
+    imap_client
+        .connect()
+        .map_err(|e| format!("Failed to connect to IMAP server: {}", e))?;
+
+    // Store client directly without Arc
+    state.imap_client = Some(imap_client);
+
+    Ok(())
+}
+
+#[command]
+async fn list_mailboxes(app_handle: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let state = app_handle.state::<Mutex<AppState>>();
+    let state = state.lock().await;
+
+    // Get IMAP client
+    let imap_client = state
+        .imap_client
+        .as_ref()
+        .ok_or_else(|| "IMAP client not initialized. Call init_imap first.".to_string())?;
+
+    // List mailboxes
+    let mailboxes = imap_client
+        .list_mailboxes()
         .map_err(|e| format!("Failed to list mailboxes: {}", e))?;
 
     // Convert the HashMap to a JSON value
@@ -60,21 +98,18 @@ async fn fetch_inbox(
     count: Option<usize>,
 ) -> Result<serde_json::Value, String> {
     let state = app_handle.state::<Mutex<AppState>>();
-    let settings = {
-        let mut state = state.lock().await;
-        let conn = state
-            .libsql
-            .as_mut()
-            .ok_or_else(|| "Database not initialized".to_string())?;
+    let state = state.lock().await;
 
-        get_settings(conn)
-            .await
-            .map_err(|e| format!("Failed to get settings: {}", e))?
-    };
+    // Get IMAP client
+    let imap_client = state
+        .imap_client
+        .as_ref()
+        .ok_or_else(|| "IMAP client not initialized. Call init_imap first.".to_string())?;
 
-    // Fetch the raw messages
-    let messages = imap_fetch_inbox(&settings, count)
-        .map_err(|e| format!("Failed to fetch inbox top: {}", e))?;
+    // Fetch inbox messages
+    let messages = imap_client
+        .fetch_inbox(count)
+        .map_err(|e| format!("Failed to fetch inbox: {}", e))?;
 
     // Process all messages using the utility function
     let processed_messages = messages_to_json_values(&messages)
@@ -104,6 +139,7 @@ async fn main() -> Result<()> {
             libsql::init_libsql,
             libsql::execute,
             libsql::select,
+            init_imap,
             fetch_inbox,
             list_mailboxes
         ]);

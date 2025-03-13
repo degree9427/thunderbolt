@@ -3,6 +3,7 @@ import { InferSelectModel } from 'drizzle-orm'
 import { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy'
 import * as schema from './db/schema'
 import { chatMessagesTable, chatThreadsTable, settingsTable } from './db/schema'
+import ImapClient from './imap/imap'
 import Database from './lib/libsql'
 import { Settings as SettingsType } from './types'
 
@@ -10,6 +11,7 @@ export type InitData = {
   db: SqliteRemoteDatabase<typeof schema>
   sqlite: Database
   settings: SettingsType
+  imap: ImapClient
 }
 
 export type ChatMessagePart = TextUIPart | ReasoningUIPart | ToolInvocationUIPart | SourceUIPart
