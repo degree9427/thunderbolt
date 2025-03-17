@@ -51,7 +51,7 @@ export function ChatLayout() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton onClick={createNewChat} className="w-fit pr-1 pl-1" tooltip="New Chat">
+                    <SidebarMenuButton onClick={createNewChat} className="w-fit pr-0 pl-0 aspect-square" tooltip="New Chat">
                       <SquarePen className="size-5" />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
