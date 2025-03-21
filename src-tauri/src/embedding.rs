@@ -1,88 +1,51 @@
-use anyhow::Error as E;
-use candle::{DType, Module, Tensor};
-use candle_core as candle;
-use candle_nn::VarBuilder;
-use candle_transformers::models::jina_bert::{BertModel, Config, PositionEmbeddingType};
-use hf_hub::{api::sync::Api, Repo, RepoType};
-use std::sync::OnceLock;
+use anyhow::Result;
+use assist_embeddings;
+use std::sync::Arc;
+use tauri::{command, State};
+use tokio::sync::Mutex;
 
-pub struct Embedder {
-    model: BertModel,
-    tokenizer: tokenizers::Tokenizer,
-    device: candle::Device,
+use crate::state::AppState;
+
+#[command]
+pub async fn init_embedder(state: State<'_, Mutex<AppState>>) -> Result<(), String> {
+    // Initialize the embedder
+    let embedder = assist_embeddings::embedding::Embedder::new()
+        .map_err(|e| format!("Failed to initialize embedder: {}", e))?;
+
+    // Store the embedder in state wrapped in an Arc for thread safety
+    let mut state_guard = state.lock().await;
+    state_guard.embedder = Some(Arc::new(embedder));
+
+    Ok(())
 }
 
-static EMBEDDER: OnceLock<Embedder> = OnceLock::new();
+#[command]
+pub async fn generate_embeddings(
+    state: State<'_, Mutex<AppState>>,
+    texts: Vec<String>,
+) -> Result<Vec<Vec<f32>>, String> {
+    // Get a cloned Arc to the embedder from state
+    let embedder_arc = {
+        let state_guard = state.lock().await;
 
-impl Embedder {
-    fn new() -> anyhow::Result<Self> {
-        // Initialize Metal device instead of CPU
-        let device = candle::Device::new_metal(0)?;
+        // Check if the embedder has been initialized
+        match &state_guard.embedder {
+            Some(embedder) => embedder.clone(), // Clone the Arc, not the embedder
+            None => return Err("Embedder not initialized".to_string()),
+        }
+    };
 
-        // Get model and tokenizer files
-        let model_name = "jinaai/jina-embeddings-v2-base-en";
-        let api = Api::new()?;
-        let model = api
-            .repo(Repo::new(model_name.to_string(), RepoType::Model))
-            .get("model.safetensors")?;
-        let tokenizer_path = api
-            .repo(Repo::new(model_name.to_string(), RepoType::Model))
-            .get("tokenizer.json")?;
+    // Clone the texts to use in the task
+    let texts_clone = texts.clone();
 
-        // Initialize tokenizer
-        let tokenizer = tokenizers::Tokenizer::from_file(tokenizer_path).map_err(E::msg)?;
+    // Spawn a blocking task with the Arc-wrapped embedder
+    let embeddings = tokio::task::spawn_blocking(move || {
+        // Use the Arc-wrapped embedder with the arc-specific function
+        assist_embeddings::embedding::generate_embeddings_arc(&embedder_arc, &texts_clone)
+            .map_err(|e| format!("Failed to generate embeddings: {}", e))
+    })
+    .await
+    .map_err(|e| format!("Task failed: {}", e))?;
 
-        // Initialize model
-        let config = Config::new(
-            tokenizer.get_vocab_size(true),
-            768,
-            12,
-            12,
-            3072,
-            candle_nn::Activation::Gelu,
-            8192,
-            2,
-            0.02,
-            1e-12,
-            0,
-            PositionEmbeddingType::Alibi,
-        );
-
-        let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[model], DType::F32, &device)? };
-        let model = BertModel::new(vb, &config)?;
-
-        Ok(Self {
-            model,
-            tokenizer,
-            device,
-        })
-    }
-
-    fn get_embedding(&self, text: &str) -> anyhow::Result<Tensor> {
-        // Tokenize input
-        let tokens = self
-            .tokenizer
-            .encode(text, true)
-            .map_err(E::msg)?
-            .get_ids()
-            .to_vec();
-        let token_ids = Tensor::new(&tokens[..], &self.device)?.unsqueeze(0)?;
-
-        // Get embeddings
-        let embeddings = self.model.forward(&token_ids)?;
-        let (_n_sentence, n_tokens, _hidden_size) = embeddings.dims3()?;
-        let embeddings = (embeddings.sum(1)? / (n_tokens as f64))?;
-
-        // Normalize embeddings
-        normalize_l2(&embeddings).map_err(E::msg)
-    }
-}
-
-pub fn get_embedding(text: &str) -> anyhow::Result<Tensor> {
-    let embedder = EMBEDDER.get_or_init(|| Embedder::new().unwrap());
-    embedder.get_embedding(text)
-}
-
-fn normalize_l2(v: &Tensor) -> candle::Result<Tensor> {
-    v.broadcast_div(&v.sqr()?.sum_keepdim(1)?.sqrt()?)
+    embeddings
 }

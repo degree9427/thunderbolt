@@ -1,5 +1,5 @@
 use anyhow::Result;
-use assist_embeddings::embedding::{get_embeddings_with_embedder, Embedder};
+use assist_embeddings::embedding::{generate_embeddings, Embedder};
 use std::time::Instant;
 
 fn main() -> Result<()> {
@@ -34,7 +34,7 @@ fn main() -> Result<()> {
 
     // Benchmark embedding generation
     let start = Instant::now();
-    let embeddings = get_embeddings_with_embedder(&embedder, &texts)?;
+    let embeddings = generate_embeddings(&embedder, &texts)?;
     let elapsed = start.elapsed();
 
     println!(

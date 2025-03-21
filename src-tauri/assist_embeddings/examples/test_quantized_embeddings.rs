@@ -1,4 +1,4 @@
-use assist_embeddings::embedding::{get_embedding_with_embedder, Embedder};
+use assist_embeddings::embedding::{generate_embedding, Embedder};
 use std::time::Instant;
 
 fn main() -> anyhow::Result<()> {
@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
     println!("Generating embedding for: '{}'", text);
 
     let embedding_start = Instant::now();
-    let embedding = get_embedding_with_embedder(&embedder, text)?;
+    let embedding = generate_embedding(&embedder, text)?;
     let embedding_time = embedding_start.elapsed();
 
     // Print first 5 values of the embedding vector to check quality
@@ -37,7 +37,7 @@ fn main() -> anyhow::Result<()> {
     let batch_start = Instant::now();
 
     for text in &texts {
-        let _ = get_embedding_with_embedder(&embedder, text)?;
+        let _ = generate_embedding(&embedder, text)?;
     }
 
     let batch_time = batch_start.elapsed();

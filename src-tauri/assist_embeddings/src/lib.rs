@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 // Make the embedding module public so it can be used in examples
 pub mod embedding;
-use embedding::{get_embedding_with_embedder, Embedder};
+use embedding::{generate_embedding, Embedder};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct EmailMessage {
@@ -43,7 +43,7 @@ pub async fn generate_batch_with_embedder(
 
     for (id, text_body) in messages {
         // Generate the embedding using our shared embedder that automatically truncates long text
-        let embedding = get_embedding_with_embedder(embedder, &text_body)?;
+        let embedding = generate_embedding(embedder, &text_body)?;
 
         // Convert Vec<f32> to binary data
         let embedding_bytes: Vec<u8> = embedding

@@ -2,14 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod db_pool;
+mod embedding;
 mod libsql;
 mod state;
 
 use anyhow::Result;
-use assist_embeddings;
-use assist_embeddings::embedding::{
-    get_embedding_with_embedder, get_embeddings_with_embedder, Embedder,
-};
 use assist_imap_client::{messages_to_json_values, ImapClient, ImapCredentials};
 use assist_imap_sync::ImapSync;
 use chrono::{DateTime, Utc};
@@ -235,143 +232,6 @@ async fn sync_mailbox(
     result
 }
 
-#[command]
-async fn generate_embeddings(
-    app_handle: tauri::AppHandle,
-    batch_size: usize,
-) -> Result<usize, String> {
-    // Clone the app handle to avoid lifetime issues
-    let app_handle = app_handle.clone();
-
-    // Spawn a tokio task to handle the embedding generation
-    let result = tokio::spawn(async move {
-        let state = app_handle.state::<Mutex<AppState>>();
-        let state = state.lock().await;
-
-        // Get the embedder from state
-        let embedder = state
-            .embedder
-            .as_ref()
-            .ok_or_else(|| "Embedder not initialized. Call init_embedder first.".to_string())?;
-
-        // Get database connection based on what's available
-        if let Some(pool) = &state.db_pool {
-            // Create a dedicated connection for this potentially long-running operation
-            let conn = pool
-                .get_database()
-                .connect()
-                .map_err(|e| format!("Failed to create connection for embeddings: {}", e))?;
-
-            // Generate embeddings for all messages using the shared embedder
-            assist_embeddings::generate_all_with_embedder(&conn, batch_size, embedder)
-                .await
-                .map_err(|e| format!("Failed to generate embeddings: {}", e))
-        } else {
-            Err("Database not initialized".to_string())
-        }
-    })
-    .await
-    .map_err(|e| format!("Task error: {}", e))?;
-
-    result
-}
-
-#[command]
-async fn generate_batch(app_handle: tauri::AppHandle, batch_size: usize) -> Result<usize, String> {
-    // Clone the app handle to avoid lifetime issues
-    let app_handle = app_handle.clone();
-
-    // Spawn a tokio task to handle the batch processing
-    let result = tokio::spawn(async move {
-        let state = app_handle.state::<Mutex<AppState>>();
-        let state = state.lock().await;
-
-        // Get the embedder from state
-        let embedder = state
-            .embedder
-            .as_ref()
-            .ok_or_else(|| "Embedder not initialized. Call init_embedder first.".to_string())?;
-
-        // Get database connection based on what's available
-        if let Some(pool) = &state.db_pool {
-            // Create a dedicated connection for this potentially long-running operation
-            let conn = pool
-                .get_database()
-                .connect()
-                .map_err(|e| format!("Failed to create connection for embeddings: {}", e))?;
-
-            // Generate embeddings for the batch using the shared embedder
-            assist_embeddings::generate_batch_with_embedder(&conn, batch_size, embedder)
-                .await
-                .map_err(|e| format!("Failed to generate batch embeddings: {}", e))
-        } else {
-            Err("Database not initialized".to_string())
-        }
-    })
-    .await
-    .map_err(|e| format!("Task error: {}", e))?;
-
-    result
-}
-
-#[command]
-async fn get_embedding(
-    app_handle: tauri::AppHandle,
-    text: String,
-) -> Result<serde_json::Value, String> {
-    // Get state to access the embedder
-    let state = app_handle.state::<Mutex<AppState>>();
-    let state_guard = state.lock().await;
-
-    // Get the embedder from state
-    let embedder = state_guard
-        .embedder
-        .as_ref()
-        .ok_or_else(|| "Embedder not initialized. Call init_embedder first.".to_string())?;
-
-    // Get embedding using the shared embedder instance
-    let embedding = get_embedding_with_embedder(embedder, &text)
-        .map_err(|e| format!("Failed to generate embedding: {}", e))?;
-
-    // Convert Vec<f32> to JSON array
-    serde_json::to_value(embedding).map_err(|e| format!("Failed to serialize embedding: {}", e))
-}
-
-#[command]
-async fn init_embedder(app_handle: tauri::AppHandle) -> Result<(), String> {
-    // Initialize the embedder
-    let embedder = Embedder::new().map_err(|e| format!("Failed to initialize embedder: {}", e))?;
-
-    // Store the embedder in state
-    let state = app_handle.state::<Mutex<AppState>>();
-    let mut state_guard = state.lock().await;
-    state_guard.embedder = Some(embedder);
-
-    Ok(())
-}
-
-#[command]
-async fn get_embeddings(
-    app_handle: tauri::AppHandle,
-    texts: Vec<String>,
-) -> Result<Vec<Vec<f32>>, String> {
-    // Access state directly
-    let state = app_handle.state::<Mutex<AppState>>();
-    let state_guard = state.lock().await;
-
-    // Get the embedder from state
-    let embedder = state_guard
-        .embedder
-        .as_ref()
-        .ok_or_else(|| "Embedder not initialized. Call init_embedder first.".to_string())?;
-
-    // Use new batch optimized function
-    match get_embeddings_with_embedder(embedder, &texts) {
-        Ok(embeddings) => Ok(embeddings),
-        Err(e) => Err(format!("Failed to generate embeddings: {}", e)),
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     // This should be called as early in the execution of the app as possible
@@ -396,11 +256,8 @@ async fn main() -> Result<()> {
             fetch_inbox,
             list_mailboxes,
             sync_mailbox,
-            generate_embeddings,
-            get_embedding,
-            generate_batch,
-            init_embedder,
-            get_embeddings
+            embedding::generate_embeddings,
+            embedding::init_embedder
         ]);
 
     #[cfg(debug_assertions)]

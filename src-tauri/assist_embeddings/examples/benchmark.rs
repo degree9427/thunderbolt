@@ -1,6 +1,6 @@
 use anyhow::Result;
 use assist_embeddings::embedding::{
-    get_embedding_with_embedder, get_embeddings_with_embedder, Embedder,
+    generate_embedding, generate_embeddings, Embedder,
 };
 use std::time::Instant;
 
@@ -27,7 +27,7 @@ fn main() -> Result<()> {
         let start = Instant::now();
 
         for t in &texts {
-            let _embedding = get_embedding_with_embedder(&embedder, t)?;
+            let _embedding = generate_embedding(&embedder, t)?;
         }
 
         let elapsed = start.elapsed();
@@ -45,7 +45,7 @@ fn main() -> Result<()> {
         println!("\nProcessing {} texts in batches:", size);
         let start = Instant::now();
 
-        let _embeddings = get_embeddings_with_embedder(&embedder, &texts)?;
+        let _embeddings = generate_embeddings(&embedder, &texts)?;
 
         let elapsed = start.elapsed();
         println!("Batch processing completed in {:.2?}", elapsed);

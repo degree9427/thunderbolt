@@ -4,6 +4,7 @@ use candle_core as candle;
 use candle_nn::VarBuilder;
 use candle_transformers::models::jina_bert::{BertModel, Config, PositionEmbeddingType};
 use hf_hub::{api::sync::Api, Repo, RepoType};
+use std::sync::Arc;
 
 pub struct Embedder {
     model: BertModel,
@@ -57,7 +58,7 @@ impl Embedder {
         })
     }
 
-    pub fn get_embedding(&self, text: &str) -> anyhow::Result<Tensor> {
+    pub fn generate_embedding(&self, text: &str) -> anyhow::Result<Tensor> {
         // Tokenize input with truncation
         let encoding = self.tokenizer.encode(text, true).map_err(E::msg)?;
         let max_tokens = 8192; // Maximum context window for Jina embeddings model
@@ -82,8 +83,8 @@ impl Embedder {
     }
 }
 
-pub fn get_embedding_with_embedder(embedder: &Embedder, text: &str) -> anyhow::Result<Vec<f32>> {
-    let tensor = embedder.get_embedding(text)?;
+pub fn generate_embedding(embedder: &Embedder, text: &str) -> anyhow::Result<Vec<f32>> {
+    let tensor = embedder.generate_embedding(text)?;
 
     // Convert tensor to Vec<f32> and map the error type to anyhow
     tensor.to_vec1().map_err(|e| anyhow::Error::new(e))
@@ -94,10 +95,7 @@ fn normalize_l2(v: &Tensor) -> candle::Result<Tensor> {
     v.broadcast_div(&v.sqr()?.sum_keepdim(1)?.sqrt()?)
 }
 
-pub fn get_embeddings_with_embedder(
-    embedder: &Embedder,
-    texts: &[String],
-) -> anyhow::Result<Vec<Vec<f32>>> {
+pub fn generate_embeddings(embedder: &Embedder, texts: &[String]) -> anyhow::Result<Vec<Vec<f32>>> {
     if texts.is_empty() {
         return Ok(Vec::new());
     }
@@ -114,7 +112,7 @@ pub fn get_embeddings_with_embedder(
 
     // Optimize single text case
     if texts.len() == 1 {
-        return Ok(vec![get_embedding_with_embedder(embedder, &texts[0])?]);
+        return Ok(vec![generate_embedding(embedder, &texts[0])?]);
     }
 
     let mut results = Vec::with_capacity(texts.len());
@@ -122,12 +120,12 @@ pub fn get_embeddings_with_embedder(
     // Process in batches to optimize memory usage and GPU utilization
     for (_i, chunk) in texts.chunks(max_batch_size).enumerate() {
         if chunk.len() == 1 {
-            let embedding = get_embedding_with_embedder(embedder, &chunk[0])?;
+            let embedding = generate_embedding(embedder, &chunk[0])?;
             results.push(embedding);
         } else {
             // Process batch sequentially to avoid GPU command buffer conflicts
             for text in chunk {
-                let embedding = get_embedding_with_embedder(embedder, text)?;
+                let embedding = generate_embedding(embedder, text)?;
                 results.push(embedding);
 
                 // A small delay between operations can help GPU stability
@@ -140,4 +138,12 @@ pub fn get_embeddings_with_embedder(
     }
 
     Ok(results)
+}
+
+// Add a new function to work with Arc<Embedder>
+pub fn generate_embeddings_arc(
+    embedder: &Arc<Embedder>,
+    texts: &[String],
+) -> anyhow::Result<Vec<Vec<f32>>> {
+    generate_embeddings(embedder, texts)
 }

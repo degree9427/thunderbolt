@@ -4,16 +4,14 @@ import { invoke } from '@tauri-apps/api/core'
 import { eq, sql } from 'drizzle-orm'
 
 /**
- * Generates embeddings for a batch of email messages in the database
- * @param batchSize The number of messages to process in this batch
- * @returns A promise that resolves to the number of messages processed
+ * Initializes the embedder model in the backend
+ * @returns A promise that resolves when the embedder is initialized
  */
-export async function generateBatch(batchSize: number = 10): Promise<number> {
+export async function initEmbedder(): Promise<void> {
   try {
-    const processedCount = await invoke('generate_batch', { batchSize })
-    return processedCount as number
+    await invoke('init_embedder')
   } catch (error) {
-    console.error('Failed to generate batch embeddings:', error)
+    console.error('Failed to initialize embedder:', error)
     throw error
   }
 }
@@ -21,38 +19,13 @@ export async function generateBatch(batchSize: number = 10): Promise<number> {
 /**
  * Generates embeddings for email messages in the database
  * @param batchSize The number of messages to process in each batch
- * @returns A promise that resolves when the operation is complete
+ * @returns A promise that resolves with the generated embeddings
  */
-export async function generateEmbeddings(batchSize: number = 10): Promise<void> {
+export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   try {
-    await invoke('generate_embeddings', { batchSize })
+    return await invoke('generate_embeddings', { texts })
   } catch (error) {
     console.error('Failed to generate embeddings:', error)
-    throw error
-  }
-}
-
-export async function getEmbedding(text: string): Promise<number[]> {
-  try {
-    const result = await invoke('get_embedding', { text })
-    return result as number[]
-  } catch (error) {
-    console.error('Failed to get embedding:', error)
-    throw error
-  }
-}
-
-/**
- * Gets embeddings for multiple texts at once using batch processing
- * @param texts Array of texts to embed
- * @returns A promise that resolves to an array of embeddings (array of number arrays)
- */
-export async function getEmbeddings(texts: string[]): Promise<number[][]> {
-  try {
-    const result = await invoke('get_embeddings', { texts })
-    return result as number[][]
-  } catch (error) {
-    console.error('Failed to get embeddings in batch:', error)
     throw error
   }
 }
@@ -65,7 +38,8 @@ export async function getEmbeddings(texts: string[]): Promise<number[][]> {
  */
 export async function search(db: DrizzleContextType['db'], searchText: string, limit: number = 5): Promise<any[]> {
   try {
-    const embedding = await getEmbedding(searchText)
+    const embeddings = await generateEmbeddings([searchText])
+    const embedding = embeddings[0] // Get the first embedding
 
     const results = await db
       .select({
@@ -80,19 +54,6 @@ export async function search(db: DrizzleContextType['db'], searchText: string, l
     return results
   } catch (error) {
     console.error('Failed to search similar messages:', error)
-    throw error
-  }
-}
-
-/**
- * Initializes the embedder model in the backend
- * @returns A promise that resolves when the embedder is initialized
- */
-export async function initEmbedder(): Promise<void> {
-  try {
-    await invoke('init_embedder')
-  } catch (error) {
-    console.error('Failed to initialize embedder:', error)
     throw error
   }
 }

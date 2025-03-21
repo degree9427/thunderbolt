@@ -1,8 +1,5 @@
 import EmbedderSettingsSection from './embedder-settings'
 import GenerateEmbeddingsSection from './generate-embeddings'
-import GenerateEmbeddingsFrontendSection from './generate-embeddings-frontend'
-import GenerateEmbeddingsFrontendNoDatabaseSection from './generate-embeddings-no-database'
-import GenerateEmbeddingsOptimizedSection from './generate-embeddings-optimized'
 import ImapMailboxesSection from './imap-mailboxes-section'
 import ImapSyncSection from './imap-sync-section'
 import ResetEmailMessagesSection from './reset-email-messages'
@@ -19,10 +16,7 @@ export default function DevToolsPage() {
           <ImapSyncSection />
           <ImapMailboxesSection />
           <ResetEmailMessagesSection />
-          <GenerateEmbeddingsOptimizedSection />
           <EmbedderSettingsSection />
-          <GenerateEmbeddingsFrontendNoDatabaseSection />
-          <GenerateEmbeddingsFrontendSection />
           <GenerateEmbeddingsSection />
           <SearchSection />
         </div>

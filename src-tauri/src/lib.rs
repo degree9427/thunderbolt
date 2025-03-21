@@ -1,5 +1,7 @@
+pub mod db_pool;
 pub mod embedding;
 pub mod settings;
+pub mod state;
 
 // For mobile
 // #[cfg_attr(mobile, tauri::mobile_entry_point)]
