@@ -1,16 +1,18 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import React from 'react'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
-
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useSettings } from '@/settings/provider'
-import { AccountsSettings } from '@/types'
+import { useDrizzle } from '@/db/provider'
+import { accountsTable } from '@/db/tables'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { eq } from 'drizzle-orm'
 import { Plus } from 'lucide-react'
+import React from 'react'
+import { useForm } from 'react-hook-form'
+import { v7 as uuidv7 } from 'uuid'
+import { z } from 'zod'
 
 const formSchema = z.object({
   hostname: z.string().min(1, { message: 'Hostname is required.' }),
@@ -20,35 +22,94 @@ const formSchema = z.object({
 })
 
 export default function AccountsSettingsPage() {
-  const { settings, setSettings } = useSettings()
+  const { db } = useDrizzle()
+  const queryClient = useQueryClient()
 
   // Add state for the selected account
-  const [selectedAccount, setSelectedAccount] = React.useState('john-doe')
+  const [selectedAccount, setSelectedAccount] = React.useState<string | null>(null)
 
-  // Mock data for multiple accounts
-  const accounts = [
-    { id: 'thoughtful', name: 'Thoughtful', email: 'chris@thoughtful.llc' },
-    { id: 'personal', name: 'Chris Gmail', email: 'chris.personal@gmail.com' },
-  ]
+  // Fetch accounts from the database
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: async () => {
+      return await db.select().from(accountsTable)
+    },
+  })
+
+  // Create account mutation
+  const createAccountMutation = useMutation({
+    mutationFn: async () => {
+      const id = uuidv7()
+      await db.insert(accountsTable).values({
+        id,
+        type: 'imap',
+        imapHostname: '',
+        imapPort: 993,
+        imapUsername: '',
+        imapPassword: '',
+      })
+      return id
+    },
+    onSuccess: (id) => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      setSelectedAccount(id)
+    },
+  })
+
+  // Select first account by default
+  React.useEffect(() => {
+    if (accounts.length > 0 && !selectedAccount) {
+      setSelectedAccount(accounts[0].id)
+    }
+  }, [accounts, selectedAccount])
 
   // Find the currently selected account
-  const currentAccount = accounts.find((account) => account.id === selectedAccount) || accounts[0]
+  const currentAccount = accounts.find((account) => account.id === selectedAccount)
+
+  // Update account mutation
+  const updateAccountMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
+      if (!selectedAccount) return
+
+      await db
+        .update(accountsTable)
+        .set({
+          imapHostname: values.hostname,
+          imapPort: values.port,
+          imapUsername: values.username,
+          imapPassword: values.password,
+        })
+        .where(eq(accountsTable.id, selectedAccount))
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+    },
+  })
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      hostname: settings.account?.hostname || '',
-      port: settings.account?.port || 3000,
-      username: settings.account?.username || '',
-      password: settings.account?.password || '',
+      hostname: currentAccount?.imapHostname || '',
+      port: currentAccount?.imapPort || 993,
+      username: currentAccount?.imapUsername || '',
+      password: currentAccount?.imapPassword || '',
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    setSettings({
-      ...settings,
-      account: values as AccountsSettings,
-    })
+  // Update form when selected account changes
+  React.useEffect(() => {
+    if (currentAccount) {
+      form.reset({
+        hostname: currentAccount.imapHostname || '',
+        port: currentAccount.imapPort || 993,
+        username: currentAccount.imapUsername || '',
+        password: currentAccount.imapPassword || '',
+      })
+    }
+  }, [currentAccount, form])
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    await updateAccountMutation.mutateAsync(values)
   }
 
   return (
@@ -56,29 +117,31 @@ export default function AccountsSettingsPage() {
       <div className="flex flex-col gap-4 p-4 w-full max-w-[760px] mx-auto">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold">Accounts</h2>
-          <Button variant="outline" size="icon">
+          <Button variant="outline" size="icon" onClick={() => createAccountMutation.mutate()} disabled={createAccountMutation.isPending}>
             <Plus />
           </Button>
         </div>
 
-        <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-          <SelectTrigger className="w-full p-6 py-8" variant="outline">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center justify-center bg-primary text-primary-foreground size-8 rounded-md font-medium">{currentAccount.name[0]}</div>
-              <div className="flex flex-col">
-                <SelectValue placeholder="Select an account" />
-                <div className="text-sm text-muted-foreground">{currentAccount.email}</div>
+        {accounts.length > 0 && (
+          <Select value={selectedAccount || undefined} onValueChange={setSelectedAccount}>
+            <SelectTrigger className="w-full p-6 py-8" variant="outline">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center justify-center bg-primary text-primary-foreground size-8 rounded-md font-medium">{currentAccount?.imapUsername?.[0]?.toUpperCase() || '?'}</div>
+                <div className="flex flex-col">
+                  <SelectValue placeholder="Select an account" />
+                  <div className="text-sm text-muted-foreground">{currentAccount?.imapUsername}</div>
+                </div>
               </div>
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            {accounts.map((account) => (
-              <SelectItem key={account.id} value={account.id}>
-                <p className="text-left">{account.name}</p>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            </SelectTrigger>
+            <SelectContent>
+              {accounts.map((account) => (
+                <SelectItem key={account.id} value={account.id}>
+                  <p className="text-left">{account.imapUsername}</p>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <h2 className="text-xl font-bold">IMAP</h2>
         <Card>
@@ -141,7 +204,9 @@ export default function AccountsSettingsPage() {
                   )}
                 />
 
-                <Button type="submit">Save</Button>
+                <Button type="submit" disabled={updateAccountMutation.isPending}>
+                  {updateAccountMutation.isPending ? 'Saving...' : 'Save'}
+                </Button>
               </form>
             </Form>
           </CardContent>

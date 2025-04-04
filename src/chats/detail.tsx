@@ -20,7 +20,7 @@ export default function ChatDetailPage() {
   } = useQuery<Message[], Error>({
     queryKey: ['chatMessages', params.chatThreadId],
     queryFn: async () => {
-      const chatMessages = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.chat_thread_id, params.chatThreadId!)).orderBy(chatMessagesTable.id)
+      const chatMessages = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.chatThreadId, params.chatThreadId!)).orderBy(chatMessagesTable.id)
       return chatMessages.map(convertDbChatMessageToMessage)
     },
     enabled: !!params.chatThreadId,

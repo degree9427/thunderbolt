@@ -127,3 +127,12 @@ export const emailMessagesToAddressesTable = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.emailMessageId, table.emailAddressId] })]
 )
+
+export const accountsTable = sqliteTable('accounts', {
+  id: text('id').primaryKey().notNull().unique(),
+  type: text('type', { enum: ['imap'] }).notNull(),
+  imapHostname: text('imap_hostname'),
+  imapPort: integer('imap_port'),
+  imapUsername: text('imap_username'),
+  imapPassword: text('imap_password'),
+})

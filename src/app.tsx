@@ -22,7 +22,6 @@ import { createAppDataDir } from './lib/fs'
 import { TrayManager, TrayProvider } from './lib/tray'
 import Loading from './loading'
 import SettingsLayout from './settings/layout'
-import { SettingsProvider } from './settings/provider'
 import { SideviewProvider } from './sideview/provider'
 import { ImapSyncClient, ImapSyncProvider } from './sync'
 import { InitData, Settings as SettingsType, SideviewType } from './types'
@@ -104,38 +103,36 @@ export const App = () => {
         <DrizzleProvider context={{ db: initData.db, sqlite: initData.sqlite }}>
           <ImapProvider client={initData.imap}>
             <ImapSyncProvider client={initData.imapSync}>
-              <SettingsProvider initialSettings={initData.settings} section="main">
-                <SidebarProvider>
-                  <SideviewProvider sideviewType={initData.sideviewType} sideviewId={initData.sideviewId}>
-                    <BrowserRouter>
-                      <Routes>
-                        <Route path="/" element={<Layout />}>
-                          {/* Home routes with HomeLayout */}
-                          <Route element={<ChatLayout />}>
-                            {/* <Route index element={<ChatNewPage />} /> */}
-                            <Route index element={<WelcomePage />} />
-                            <Route path="chats/:chatThreadId" element={<ChatDetailPage />} />
-                          </Route>
-
-                          {/* Settings routes with SettingsLayout */}
-                          <Route path="settings" element={<SettingsLayout />}>
-                            <Route index element={<Settings />} />
-                            <Route path="accounts" element={<AccountsSettingsPage />} />
-                            <Route path="models" element={<ModelsLayout />}>
-                              <Route index element={<Navigate to="/settings/models/new" replace />} />
-                              <Route path="new" element={<NewModelPage />} />
-                              <Route path=":modelId" element={<ModelDetailPage />} />
-                            </Route>
-                          </Route>
-
-                          <Route path="ui-kit" element={<UiKitPage />} />
-                          <Route path="devtools" element={<DevToolsPage />} />
+              <SidebarProvider>
+                <SideviewProvider sideviewType={initData.sideviewType} sideviewId={initData.sideviewId}>
+                  <BrowserRouter>
+                    <Routes>
+                      <Route path="/" element={<Layout />}>
+                        {/* Home routes with HomeLayout */}
+                        <Route element={<ChatLayout />}>
+                          {/* <Route index element={<ChatNewPage />} /> */}
+                          <Route index element={<WelcomePage />} />
+                          <Route path="chats/:chatThreadId" element={<ChatDetailPage />} />
                         </Route>
-                      </Routes>
-                    </BrowserRouter>
-                  </SideviewProvider>
-                </SidebarProvider>
-              </SettingsProvider>
+
+                        {/* Settings routes with SettingsLayout */}
+                        <Route path="settings" element={<SettingsLayout />}>
+                          <Route index element={<Settings />} />
+                          <Route path="accounts" element={<AccountsSettingsPage />} />
+                          <Route path="models" element={<ModelsLayout />}>
+                            <Route index element={<Navigate to="/settings/models/new" replace />} />
+                            <Route path="new" element={<NewModelPage />} />
+                            <Route path=":modelId" element={<ModelDetailPage />} />
+                          </Route>
+                        </Route>
+
+                        <Route path="ui-kit" element={<UiKitPage />} />
+                        <Route path="devtools" element={<DevToolsPage />} />
+                      </Route>
+                    </Routes>
+                  </BrowserRouter>
+                </SideviewProvider>
+              </SidebarProvider>
             </ImapSyncProvider>
           </ImapProvider>
         </DrizzleProvider>

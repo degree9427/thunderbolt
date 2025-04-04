@@ -12,11 +12,10 @@ import { useDrizzle } from './db/provider'
 import { emailMessagesTable, modelsTable, todosTable } from './db/tables'
 import { useImap } from './imap/provider'
 import { ImapSyncer } from './imap/sync'
-import { useSettings } from './settings/provider'
+import { useSetting } from './settings/provider'
 import { useSideview } from './sideview/provider'
 
 export default function WelcomePage() {
-  const settingsContext = useSettings()
   const { client: imapClient } = useImap()
   const { db } = useDrizzle()
   const { setSideview } = useSideview()
@@ -25,6 +24,8 @@ export default function WelcomePage() {
   const [loading, setLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showAllTodos, setShowAllTodos] = useState(false)
+
+  const { value: lastGeneratedTodos, setValue: setLastGeneratedTodos, isLoading: isLoadingLastGeneratedTodos } = useSetting<number>('last_generated_todos_from_inbox')
 
   const hours = new Date().getHours()
   const timeOfDay = hours < 12 ? 'Morning' : hours < 18 ? 'Afternoon' : 'Evening'
@@ -39,12 +40,11 @@ export default function WelcomePage() {
       setToDoList([]) // Clear existing todos while loading
 
       // Check if we need to regenerate todos
-      const lastGeneratedTodos = settingsContext.settings?.last_generated_todos_from_inbox
       const now = new Date().getTime()
       const oneHourInMs = 60 * 60 * 1000
 
       // If lastGeneratedTodos is more than 1 hour old or doesn't exist, or if forceRefresh is true, regenerate todos
-      if (forceRefresh || !lastGeneratedTodos || now - parseInt(lastGeneratedTodos) > oneHourInMs) {
+      if (forceRefresh || !lastGeneratedTodos || now - lastGeneratedTodos > oneHourInMs) {
         console.log('Regenerating todos')
 
         // Delete existing todos with email_thread_id
@@ -119,10 +119,12 @@ export default function WelcomePage() {
         }
 
         // Save the timestamp of when we generated the todos
-        await settingsContext.setSettings({
-          ...settingsContext.settings,
-          last_generated_todos_from_inbox: now.toString(),
-        })
+        // await settingsContext.setSettings({
+        //   ...settingsContext.settings,
+        //   last_generated_todos_from_inbox: now.toString(),
+        // })
+
+        await setLastGeneratedTodos(now)
       } else {
         // If we don't need to regenerate todos, just fetch them from the database
         const todos = await db.select().from(todosTable).where(isNotNull(todosTable.emailMessageId)).orderBy(todosTable.id)
@@ -145,6 +147,10 @@ export default function WelcomePage() {
   }, [])
 
   const displayedTodos = showAllTodos ? toDoList : toDoList.slice(0, 3)
+
+  if (isLoadingLastGeneratedTodos) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="h-full w-full p-8 flex flex-col gap-6 bg-gradient-to-br from-background to-secondary/20">
