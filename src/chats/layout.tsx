@@ -19,7 +19,7 @@ import {
 import { useDrizzle } from '@/db/provider'
 import { chatThreadsTable } from '@/db/tables'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { Loader2, MoreHorizontal, SquarePen } from 'lucide-react'
 import { Link, Outlet, useNavigate, useParams } from 'react-router'
 import { v7 as uuidv7 } from 'uuid'
@@ -35,7 +35,7 @@ export default function Page() {
   const { data: chatThreads = [] } = useQuery({
     queryKey: ['chatThreads'],
     queryFn: async () => {
-      return db.select().from(chatThreadsTable).orderBy(chatThreadsTable.id)
+      return db.select().from(chatThreadsTable).orderBy(desc(chatThreadsTable.id))
     },
   })
 

@@ -1,23 +1,17 @@
-import ChatUI from '@/components/chat/chat-ui'
 import { useDrizzle } from '@/db/provider'
 import { modelsTable, settingsTable } from '@/db/tables'
-import { aiFetchStreamingResponse } from '@/lib/ai'
 import { Model, SaveMessagesFunction, Setting } from '@/types'
-import { useChat } from '@ai-sdk/react'
 import { useQuery } from '@tanstack/react-query'
-import { Message } from 'ai'
-import { useEffect, useState } from 'react'
-import { v7 as uuidv7 } from 'uuid'
+import { UIMessage } from 'ai'
+import ChatState from './chat-state'
 
 interface ChatProps {
   id: string
-  initialMessages: Message[] | undefined
-  maxSteps?: number
+  initialMessages: UIMessage[] | undefined
   saveMessages: SaveMessagesFunction
 }
 
-export default function Chat({ id, initialMessages, maxSteps = 5, saveMessages }: ChatProps) {
-  const [selectedModel, setSelectedModel] = useState<string | null>(null)
+export default function Chat({ id, initialMessages, saveMessages }: ChatProps) {
   const { db } = useDrizzle()
 
   const { data: models = [] } = useQuery<Model[]>({
@@ -34,44 +28,9 @@ export default function Chat({ id, initialMessages, maxSteps = 5, saveMessages }
     },
   })
 
-  useEffect(() => {
-    if (models.length > 0 && !selectedModel) {
-      setSelectedModel(models[0].id)
-    }
-  }, [models, selectedModel])
+  if (!models || !settings) {
+    return <div>Loading...</div>
+  }
 
-  const chatHelpers = useChat({
-    id,
-    initialMessages,
-    sendExtraMessageFields: true,
-
-    // only send the last message to the server
-    // experimental_prepareRequestBody({ messages, id }) {
-    //   return { message: messages[messages.length - 1], id }
-    // },
-
-    generateId: uuidv7,
-
-    fetch: (_requestInfoOrUrl: RequestInfo | URL, init?: RequestInit) => {
-      if (!init) {
-        throw new Error('No init found')
-      }
-
-      const model = models.find((model) => model.id === selectedModel)
-
-      if (!model) {
-        throw new Error('No model found')
-      }
-
-      return aiFetchStreamingResponse({
-        init,
-        saveMessages,
-        model,
-        settings,
-      })
-    },
-    maxSteps,
-  })
-
-  return <ChatUI chatHelpers={chatHelpers} models={models} selectedModel={selectedModel} onModelChange={setSelectedModel} />
+  return <ChatState id={id} models={models} settings={settings} initialMessages={initialMessages} saveMessages={saveMessages} />
 }

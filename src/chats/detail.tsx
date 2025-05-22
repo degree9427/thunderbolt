@@ -1,9 +1,9 @@
 import { useDrizzle } from '@/db/provider'
 import { chatMessagesTable } from '@/db/tables'
-import { convertDbChatMessageToMessage, convertMessageToDbChatMessage } from '@/lib/utils'
+import { convertDbChatMessageToUIMessage, convertUIMessageToDbChatMessage } from '@/lib/utils'
 import { SaveMessagesFunction } from '@/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Message } from 'ai'
+import { UIMessage } from 'ai'
 import { eq } from 'drizzle-orm'
 import { useParams } from 'react-router'
 import Chat from './chat'
@@ -17,19 +17,19 @@ export default function ChatDetailPage() {
     data: messages,
     isLoading,
     isError,
-  } = useQuery<Message[], Error>({
+  } = useQuery<UIMessage[], Error>({
     queryKey: ['chatMessages', params.chatThreadId],
     queryFn: async () => {
       const chatMessages = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.chatThreadId, params.chatThreadId!)).orderBy(chatMessagesTable.id)
-      return chatMessages.map(convertDbChatMessageToMessage)
+      return chatMessages.map(convertDbChatMessageToUIMessage)
     },
     enabled: !!params.chatThreadId,
     initialData: [],
   })
 
   const addMessagesMutation = useMutation({
-    mutationFn: async (messages: Message[]) => {
-      const dbChatMessages = messages.map((message) => convertMessageToDbChatMessage(message, params.chatThreadId!))
+    mutationFn: async (messages: UIMessage[]) => {
+      const dbChatMessages = messages.map((message) => convertUIMessageToDbChatMessage(message, params.chatThreadId!))
 
       return await db.insert(chatMessagesTable).values(dbChatMessages).onConflictDoNothing({
         target: chatMessagesTable.id,

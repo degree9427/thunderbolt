@@ -6,6 +6,7 @@ import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { AgentToolResponse } from './agent-tool-response'
+import { Reasoning } from './reasoning'
 
 interface ChatUIProps {
   chatHelpers: UseChatHelpers
@@ -25,6 +26,8 @@ export default function ChatUI({ chatHelpers, models, selectedModel, onModelChan
     scrollToBottom()
   }, [chatHelpers.messages])
 
+  console.log(chatHelpers.messages)
+
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden max-w-[760px] mx-auto">
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
@@ -32,22 +35,35 @@ export default function ChatUI({ chatHelpers, models, selectedModel, onModelChan
           if (message.role === 'assistant') {
             return (
               <div key={i} className="space-y-2 p-4 rounded-md  bg-secondary mr-auto">
-                {message.content && <div className="text-secondary-foreground leading-relaxed italic">{message.content}</div>}
                 {message.parts
-                  ?.filter((part) => part.type === 'tool-invocation')
+                  .filter((part) => part.type === 'tool-invocation')
                   .map((part, j) => (
                     <AgentToolResponse key={j} part={part} />
+                  ))}
+                {message.parts
+                  .filter((part) => part.type === 'reasoning')
+                  .map((part, j) => (
+                    <Reasoning key={j} text={part.text} />
+                  ))}
+                {message.parts
+                  .filter((part) => part.type === 'text')
+                  .map((part, j) => (
+                    <div key={j} className="text-secondary-foreground leading-relaxed">
+                      {part.text}
+                    </div>
                   ))}
               </div>
             )
           } else if (message.role === 'user') {
-            return (
-              <div key={i} className="p-4 rounded-md max-w-3/4 bg-primary text-primary-foreground ml-auto">
-                <div className="space-y-2">
-                  <div className="text-primary-foreground leading-relaxed">{message.content}</div>
+            return message.parts
+              .filter((part) => part.type === 'text')
+              .map((part, j) => (
+                <div key={j} className="p-4 rounded-md max-w-3/4 bg-primary text-primary-foreground ml-auto">
+                  <div className="space-y-2">
+                    <div className="text-primary-foreground leading-relaxed">{part.text}</div>
+                  </div>
                 </div>
-              </div>
-            )
+              ))
           }
           return null
         })}

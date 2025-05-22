@@ -2,9 +2,10 @@ import { Model, SaveMessagesFunction, Setting } from '@/types'
 import { createFireworks } from '@ai-sdk/fireworks'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { appendResponseMessages, LanguageModelV1, Message, streamText, ToolInvocation } from 'ai'
-import { v7 as uuidv7 } from 'uuid'
-import { toolset } from './ai-tools'
+import { convertToModelMessages, LanguageModel, streamText, ToolInvocation, UIMessage, maxSteps, wrapLanguageModel, extractReasoningMiddleware } from 'ai'
+import { createDeepInfra } from '@ai-sdk/deepinfra'
+
+import z from 'zod'
 
 export type ToolInvocationWithResult<T = object> = ToolInvocation & {
   result: T
@@ -23,53 +24,11 @@ const p1 = `
   
     The current user is ${user.first_name} ${user.last_name} (${user.email}).
 
-    Use the available tools to answer the user's question.
+    You can use the available tools to answer the user's question.
     
     If you are unable to answer the user's question based on the available information, just say so. Do not make up an answer.
-    
-    Call the "answer" tool to provide your final response to the user.
 
-    Do not respond to the user, only use the tools.
-`
-
-const p2 = `
-    You are a helpful executive assistant that assists users with their email and calendar.
-    
-    The current date and time is ${new Date().toISOString()}.
-  
-    The current user is ${user.first_name} ${user.last_name} (${user.email}).
-    
-    Call the "search" tool once to search the user's inbox and contacts for relevant information.
-    
-    Some of these documents may not be relevant to the user's question. It is your job to read through the content of the results to decide if they are relevant.
-    
-    If none of the search results are relevant, that's ok, but you don't need to search again.
-    
-    If you are unable to answer the user's question based on the search results, just say so. Do not make up an answer.
-    
-    Call the "answer" tool to provide your final response to the user. Example:
-    
-    {
-      "text": "I found several Postmark receipts in your inbox. Here are the details of the receipts:",
-      "results": [
-        {
-          "id": "bef3aad4-731f-48c8-acd9-799f82a5f106",
-          "type": "message"
-        },
-        {
-          "id": "29d52df1-2786-4f47-a53d-a23a33a07ebf",
-          "type": "message"
-        },
-        {
-          "id": "f98bc38a-53ab-48bc-a6d1-4b122358385a",
-          "type": "thread"
-        },
-        {
-          "id": "2026780c-8af3-4d02-91dc-36a62a7413e2",
-          "type": "contact"
-        }
-      ]
-    }
+    Respond to the user's question in a helpful, concise and friendly manner. Always reply to the user in plain text - do not reply in markdown or mention JSON or anything about tools
 `
 
 export const ollama = createOpenAI({
@@ -85,7 +44,7 @@ type AiFetchStreamingResponseOptions = {
   settings: Setting[]
 }
 
-export const createModel = (modelConfig: Model): LanguageModelV1 => {
+export const createModel = (modelConfig: Model): LanguageModel => {
   switch (modelConfig.provider) {
     case 'openai': {
       if (!modelConfig.apiKey) {
@@ -94,9 +53,7 @@ export const createModel = (modelConfig: Model): LanguageModelV1 => {
       const openai = createOpenAI({
         apiKey: modelConfig.apiKey,
       })
-      const model = openai(modelConfig.model, {
-        structuredOutputs: true,
-      })
+      const model = openai(modelConfig.model)
 
       return model
     }
@@ -110,7 +67,19 @@ export const createModel = (modelConfig: Model): LanguageModelV1 => {
 
       const model = fireworks(modelConfig.model)
 
-      return model as LanguageModelV1
+      return model as LanguageModel
+    }
+    case 'deepinfra': {
+      if (!modelConfig.apiKey) {
+        throw new Error('No API key provided')
+      }
+      const deepinfra = createDeepInfra({
+        apiKey: modelConfig.apiKey,
+      })
+
+      const model = deepinfra('meta-llama/Meta-Llama-3.1-70B-Instruct')
+
+      return model as LanguageModel
     }
     case 'openai_compatible': {
       if (!modelConfig.url) {
@@ -121,7 +90,7 @@ export const createModel = (modelConfig: Model): LanguageModelV1 => {
         baseURL: modelConfig.url,
         apiKey: modelConfig.apiKey ?? undefined,
       })
-      return openaiCompatible(modelConfig.model) as LanguageModelV1
+      return openaiCompatible(modelConfig.model) as LanguageModel
     }
     default: {
       throw new Error(`Unsupported model provider: ${modelConfig.provider}`)
@@ -130,68 +99,87 @@ export const createModel = (modelConfig: Model): LanguageModelV1 => {
 }
 
 export const aiFetchStreamingResponse = async ({ init, saveMessages, model: modelConfig, settings }: AiFetchStreamingResponseOptions) => {
-  // _requestInfoOrUrl is not used, but is required by fetch. The OpenAI wrapper handles the URL For us.
+  try {
+    const baseModel = await createModel(modelConfig)
 
-  const model = await createModel(modelConfig)
+    const wrappedModel = wrapLanguageModel({
+      model: baseModel,
+      middleware: extractReasoningMiddleware({ tagName: 'think' }),
+    })
 
-  const options = init as RequestInit & { body: string }
-  const body = JSON.parse(options.body)
+    const model = wrappedModel
 
-  const { messages, id } = body as { messages: Message[]; id: string }
+    const options = init as RequestInit & { body: string }
+    const body = JSON.parse(options.body)
 
-  // If we enable experimental_prepareRequestBody in useChat:
-  // const { message } = body as { message: Message }
-  // const messages = appendClientMessage({
-  //   messages: previousMessages,
-  //   message,
-  // });
+    const { messages, chatId } = body as { messages: UIMessage[]; chatId: string }
 
-  const processedMessages = messages.map((message) => ({
-    ...message,
-    parts: message.parts?.map((part) => {
-      if (part.type === 'tool-invocation' && !(part.toolInvocation as ToolInvocationWithResult).result) {
-        return {
-          ...part,
-          toolInvocation: {
-            ...part.toolInvocation,
-            result: true,
+    await saveMessages({
+      id: chatId,
+      messages,
+    })
+
+    console.log('Using model', modelConfig.provider, modelConfig.model)
+
+    const result = streamText({
+      // Currently llama is able to call the search tool, but it does not call the answer tool afterwards - need to debug why.
+      // model: ollama('llama3.2:3b-instruct-q4_1', {
+      //   structuredOutputs: true,
+      // }),
+      model,
+      system: p1,
+      messages: convertToModelMessages(messages),
+      toolCallStreaming: true, // Causes issues because this results in incomplete result objects getting passed to React components. Experimentation to block rendering until the full objects are available is needed.
+      tools: {
+        getForecast: {
+          description: 'Get the weather forecast.',
+          parameters: z.object({
+            // location: z.string().describe('The location to get the weather forecast for.').optional(),
+          }),
+          execute: async () => {
+            try {
+              let url = 'https://api.open-meteo.com/v1/forecast?hourly=temperature_2m,precipitation,cloud_cover'
+
+              // Get location from settings if available
+              const locationLat = settings.find((s) => s.key === 'location_lat')?.value
+              const locationLng = settings.find((s) => s.key === 'location_lng')?.value
+
+              if (locationLat && locationLng) {
+                url = `${url}&latitude=${locationLat}&longitude=${locationLng}`
+              } else {
+                // Fallback to default coordinates if no settings found
+                url = `${url}&latitude=52.52&longitude=13.41`
+              }
+
+              const response = await fetch(url)
+              if (!response.ok) {
+                throw new Error(`Weather API returned ${response.status}: ${response.statusText}`)
+              }
+
+              console.log('response', response)
+
+              const forecast = await response.json()
+
+              console.log('forecast', forecast)
+              return forecast
+            } catch (error) {
+              console.error('Error fetching weather forecast:', error)
+              throw new Error('Failed to get weather forecast')
+            }
           },
-        }
-      }
-      return part
-    }),
-  }))
+        },
+      },
+      // continueUntil: hasToolCall('answer'),
+      continueUntil: maxSteps(5),
 
-  console.log('Using model', modelConfig.provider, modelConfig.model)
+      // toolChoice: 'required',
+    })
 
-  const result = streamText({
-    maxSteps: 5,
-    // Currently llama is able to call the search tool, but it does not call the answer tool afterwards - need to debug why.
-    // model: ollama('llama3.2:3b-instruct-q4_1', {
-    //   structuredOutputs: true,
-    // }),
-    model,
-    system: p1,
-    messages: processedMessages,
-    toolCallStreaming: true, // Causes issues because this results in incomplete result objects getting passed to React components. Experimentation to block rendering until the full objects are available is needed.
-    tools: toolset({ settings }),
-    multipleToolCalls: true,
-
-    // if we want to generate a custom id
-    experimental_generateMessageId: uuidv7,
-
-    async onFinish({ response }) {
-      await saveMessages({
-        id,
-        messages: appendResponseMessages({
-          messages,
-          responseMessages: response.messages,
-        }),
-      })
-    },
-
-    toolChoice: 'required',
-  })
-
-  return result.toDataStreamResponse()
+    return result.toUIMessageStreamResponse({
+      sendReasoning: true,
+    })
+  } catch (error) {
+    console.error('Error in aiFetchStreamingResponse:', error)
+    throw error
+  }
 }

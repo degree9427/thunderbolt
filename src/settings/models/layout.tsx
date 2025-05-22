@@ -18,8 +18,8 @@ export default function ModelsLayout() {
       const results = await db.select().from(modelsTable)
       return results.map((model) => ({
         ...model,
-        api_key: model.api_key || undefined,
-        is_system: model.is_system || undefined,
+        api_key: model.apiKey || undefined,
+        is_system: model.isSystem || undefined,
       }))
     },
   })
@@ -63,6 +63,7 @@ export default function ModelsLayout() {
             <SelectItem key={model.id} value={model.id}>
               <p className="text-left">
                 {model.provider === 'openai' && 'OpenAI'}
+                {model.provider === 'deepinfra' && 'DeepInfra'}
                 {model.provider === 'fireworks' && 'Fireworks'}
                 {model.provider === 'openai_compatible' && 'OpenAI Compatible'} - {model.model}
               </p>

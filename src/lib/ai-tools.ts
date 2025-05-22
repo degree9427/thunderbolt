@@ -113,22 +113,6 @@ export const tools = {
         },
       }),
   },
-  answer: {
-    verb: 'Answering the user...',
-    tool: ({ settings }: toolContext) =>
-      tool({
-        description: 'Provide your final response to the user.',
-        parameters: z.object({
-          text: z.string().describe('The verbal response to the user in plain text. Do not list anything here.'),
-          results: z.array(z.string()),
-        }),
-        // Important: Do NOT have an execute function otherwise it will call this tool multiple times.
-        // But: it is helpful for debugging :)
-        execute: async ({ text, results }) => {
-          console.log('answer', text, results)
-        },
-      }),
-  },
 }
 
 export const toolset = (toolContext: toolContext) =>

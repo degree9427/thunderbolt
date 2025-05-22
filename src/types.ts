@@ -1,4 +1,4 @@
-import { Message, ReasoningUIPart, SourceUIPart, TextUIPart, ToolInvocationUIPart } from '@ai-sdk/ui-utils'
+import { UIDataTypes, UIMessagePart } from 'ai'
 import { TrayIcon } from '@tauri-apps/api/tray'
 import { Window } from '@tauri-apps/api/window'
 import { InferSelectModel } from 'drizzle-orm'
@@ -20,6 +20,7 @@ import {
 import ImapClient from './imap/imap'
 import Database from './lib/libsql'
 import { ImapSyncClient } from './sync'
+import { UIMessage } from 'ai'
 
 export type InitData = {
   db: SqliteRemoteDatabase<typeof schema>
@@ -32,10 +33,10 @@ export type InitData = {
   sideviewId: string | null
 }
 
-export type ChatMessagePart = TextUIPart | ReasoningUIPart | ToolInvocationUIPart | SourceUIPart
+export type ChatMessagePart = UIMessagePart<UIDataTypes>
 export type ChatMessageRole = 'data' | 'system' | 'user' | 'assistant'
 
-export type SaveMessagesFunction = ({ id, messages }: { id: string; messages: Message[] }) => Promise<void>
+export type SaveMessagesFunction = ({ id, messages }: { id: string; messages: UIMessage[] }) => Promise<void>
 
 export type AccountsSettings = {
   hostname: string

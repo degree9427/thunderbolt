@@ -16,7 +16,7 @@ import { Model } from '@/types'
 
 const formSchema = z
   .object({
-    provider: z.enum(['openai', 'fireworks', 'openai_compatible']),
+    provider: z.enum(['openai', 'deepinfra', 'fireworks', 'openai_compatible']),
     name: z.string().min(1, { message: 'Name is required.' }),
     model: z.string().min(1, { message: 'Model name is required.' }),
     url: z.string().optional(),
@@ -105,6 +105,7 @@ export default function NewModelPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="deepinfra">DeepInfra</SelectItem>
                         <SelectItem value="fireworks">Fireworks</SelectItem>
                         <SelectItem value="openai_compatible">OpenAI Compatible</SelectItem>
                       </SelectContent>
