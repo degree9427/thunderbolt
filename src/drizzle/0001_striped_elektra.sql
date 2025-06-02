@@ -1,0 +1,1 @@
+ALTER TABLE `models` ADD `enabled` integer DEFAULT 1 NOT NULL;

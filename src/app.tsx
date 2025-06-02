@@ -8,9 +8,7 @@ import { useMcpSync } from '@/hooks/use-mcp-sync'
 import AccountsSettingsPage from '@/settings/accounts'
 import { default as Settings } from '@/settings/index'
 import McpServersPage from '@/settings/mcp-servers'
-import ModelDetailPage from '@/settings/models/detail'
-import ModelsLayout from '@/settings/models/layout'
-import NewModelPage from '@/settings/models/new'
+import ModelsPage from '@/settings/models'
 import PreferencesSettingsPage from '@/settings/preferences'
 import ThunderboltBridgeSettingsPage from '@/settings/thunderbolt-bridge'
 import { useEffect, useState } from 'react'
@@ -57,11 +55,7 @@ function AppContent({ initData }: { initData: InitData }) {
           <Route path="settings" element={<SettingsLayout />}>
             <Route index element={<Settings />} />
             <Route path="preferences" element={<PreferencesSettingsPage />} />
-            <Route path="models" element={<ModelsLayout />}>
-              <Route index element={<Navigate to="/settings/models/new" replace />} />
-              <Route path="new" element={<NewModelPage />} />
-              <Route path=":modelId" element={<ModelDetailPage />} />
-            </Route>
+            <Route path="models" element={<ModelsPage />} />
             <Route path="mcp-servers" element={<McpServersPage />} />
             <Route path="accounts" element={<AccountsSettingsPage />} />
             <Route path="thunderbolt-bridge" element={<ThunderboltBridgeSettingsPage />} />

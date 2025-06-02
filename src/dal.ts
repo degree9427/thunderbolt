@@ -27,6 +27,7 @@ export const seedModels = async (db: DrizzleContextType['db']) => {
         provider: 'thunderbolt' as const,
         model: 'accounts/fireworks/models/llama-v3p1-70b-instruct',
         isSystem: 1,
+        enabled: 1,
       },
       {
         id: uuidv7(),
@@ -34,6 +35,7 @@ export const seedModels = async (db: DrizzleContextType['db']) => {
         provider: 'thunderbolt' as const,
         model: 'accounts/fireworks/models/llama-v3p1-405b-instruct',
         isSystem: 1,
+        enabled: 1,
       },
       {
         id: uuidv7(),
@@ -41,6 +43,7 @@ export const seedModels = async (db: DrizzleContextType['db']) => {
         provider: 'thunderbolt' as const,
         model: 'accounts/fireworks/models/qwen3-235b-a22b',
         isSystem: 1,
+        enabled: 1,
       },
       {
         id: uuidv7(),
@@ -49,6 +52,7 @@ export const seedModels = async (db: DrizzleContextType['db']) => {
         model: 'llama3.2:3b-instruct-q4_1',
         url: 'http://localhost:11434/v1',
         isSystem: 0,
+        enabled: 1,
       },
     ]
     for (const model of seedData) {

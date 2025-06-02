@@ -99,6 +99,7 @@ export const modelsTable = sqliteTable('models', {
   url: text('url'),
   apiKey: text('api_key'),
   isSystem: integer('is_system').default(0),
+  enabled: integer('enabled').default(1).notNull(),
 })
 
 export const embeddingsTable = sqliteTable('embeddings', {

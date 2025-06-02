@@ -3,6 +3,7 @@ import { modelsTable, settingsTable } from '@/db/tables'
 import { Model, SaveMessagesFunction, Setting } from '@/types'
 import { useQuery } from '@tanstack/react-query'
 import { UIMessage } from 'ai'
+import { eq } from 'drizzle-orm'
 import ChatState from './chat-state'
 
 interface ChatProps {
@@ -17,7 +18,8 @@ export default function Chat({ id, initialMessages, saveMessages }: ChatProps) {
   const { data: models = [] } = useQuery<Model[]>({
     queryKey: ['models'],
     queryFn: async () => {
-      return await db.select().from(modelsTable)
+      // Only fetch enabled models from the database
+      return await db.select().from(modelsTable).where(eq(modelsTable.enabled, 1))
     },
   })
 

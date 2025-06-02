@@ -8,7 +8,7 @@ import React from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -288,23 +288,25 @@ export default function PreferencesSettingsPage() {
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="p-0 w-full" align="start">
+                      <PopoverContent className="p-0 w-full" side="bottom" align="start" sideOffset={4}>
                         <Command>
                           <CommandInput placeholder="Search for locations..." value={searchQuery} onValueChange={setSearchQuery} />
-                          {isSearching && <div className="py-6 text-center text-sm">Searching...</div>}
-                          {!isSearching && (
-                            <>
-                              <CommandEmpty>No locations found.</CommandEmpty>
-                              <CommandGroup>
-                                {locations.map((location) => (
-                                  <CommandItem key={`${location.coordinates.lat}-${location.coordinates.lng}`} value={location.name} onSelect={() => handleSelectLocation(location)}>
-                                    <Check className={cn('mr-2 h-4 w-4', location.name === field.value ? 'opacity-100' : 'opacity-0')} />
-                                    {location.name}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </>
-                          )}
+                          <CommandList>
+                            {isSearching && <div className="py-6 text-center text-sm">Searching...</div>}
+                            {!isSearching && (
+                              <>
+                                <CommandEmpty>No locations found.</CommandEmpty>
+                                <CommandGroup>
+                                  {locations.map((location) => (
+                                    <CommandItem key={`${location.coordinates.lat}-${location.coordinates.lng}`} value={location.name} onSelect={() => handleSelectLocation(location)}>
+                                      <Check className={cn('mr-2 h-4 w-4', location.name === field.value ? 'opacity-100' : 'opacity-0')} />
+                                      {location.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </>
+                            )}
+                          </CommandList>
                         </Command>
                       </PopoverContent>
                     </Popover>
