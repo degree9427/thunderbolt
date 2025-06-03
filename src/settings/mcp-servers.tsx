@@ -494,9 +494,10 @@ export default function McpServersPage() {
                             id={`${server.id}-${tool}`}
                             checked={selectedTools[server.id]?.[tool] ?? true}
                             onCheckedChange={(checked) => handleToolToggle(server.id, tool, checked as boolean)}
-                            className="cursor-pointer"
+                            disabled={true}
+                            className="cursor-default"
                           />
-                          <Label htmlFor={`${server.id}-${tool}`} className="text-sm cursor-pointer flex-1 font-normal">
+                          <Label htmlFor={`${server.id}-${tool}`} className="text-sm cursor-default flex-1 font-normal">
                             {tool}
                           </Label>
                         </div>
