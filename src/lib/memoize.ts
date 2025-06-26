@@ -16,15 +16,28 @@
  * // later calls reuse the resolved Promise
  * ```
  */
-export function memoize<Fn extends (...args: any[]) => any>(fn: Fn, key: string = fn.name || 'anon'): Fn {
-  // A single cache bag shared across the whole application.
-  const BAG = Symbol.for('memoize.cache')
-  const cache: Record<string, unknown> = (globalThis as any)[BAG] ?? ((globalThis as any)[BAG] = {})
+export function memoize<Fn extends (...args: any[]) => any>(fn: Fn, key?: string): Fn {
+  // 1. Default: cache per **function reference** (WeakMap)
+  // 2. Optional: cache per explicit **string key** when callers need to share a value
+
+  const FUNC_CACHE = Symbol.for('memoize.func_cache')
+  const KEY_CACHE = Symbol.for('memoize.string_cache')
+
+  const funcCache: WeakMap<Function, unknown> =
+    (globalThis as any)[FUNC_CACHE] ?? ((globalThis as any)[FUNC_CACHE] = new WeakMap())
+  const keyCache: Record<string, unknown> = (globalThis as any)[KEY_CACHE] ?? ((globalThis as any)[KEY_CACHE] = {})
 
   return ((...args: any[]) => {
-    if (key in cache) return cache[key] as ReturnType<Fn>
+    if (key) {
+      if (key in keyCache) return keyCache[key] as ReturnType<Fn>
+      const result = fn(...args)
+      keyCache[key] = result
+      return result
+    }
+
+    if (funcCache.has(fn)) return funcCache.get(fn) as ReturnType<Fn>
     const result = fn(...args)
-    cache[key] = result
+    funcCache.set(fn, result)
     return result
   }) as Fn
 }

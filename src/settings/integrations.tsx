@@ -69,7 +69,7 @@ export default function IntegrationsPage() {
 
   const [integrations, setIntegrations] = useState<Integration[]>([])
   const [loading, setLoading] = useState(true)
-  const [connecting, setConnecting] = useState(false)
+  const [connectingProvider, setConnectingProvider] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -112,7 +112,7 @@ export default function IntegrationsPage() {
       }
 
       try {
-        setConnecting(true)
+        setConnectingProvider(provider)
 
         const tokens: OAuthTokens = await exchangeCodeForTokens(provider, code, codeVerifier)
         const userInfo: GoogleUserInfo = await getUserInfo(provider, tokens.access_token)
@@ -144,7 +144,7 @@ export default function IntegrationsPage() {
         console.error('Failed to complete OAuth:', err)
         setError(err.message || 'Failed to complete authentication')
       } finally {
-        setConnecting(false)
+        setConnectingProvider(null)
       }
     }
 
@@ -222,7 +222,7 @@ export default function IntegrationsPage() {
   const handleConnect = async (integration: Integration) => {
     const provider = integration.provider as 'google' | 'microsoft'
 
-    setConnecting(true)
+    setConnectingProvider(provider)
     setError(null)
 
     try {
@@ -265,7 +265,7 @@ export default function IntegrationsPage() {
     } finally {
       // For web we never reach this point because the page is redirected.
       if (isTauri()) {
-        setConnecting(false)
+        setConnectingProvider(null)
       }
     }
   }
@@ -337,8 +337,12 @@ export default function IntegrationsPage() {
 
             {!integration.isConnected && (
               <CardContent>
-                <Button onClick={() => handleConnect(integration)} className="w-full" disabled={connecting}>
-                  {connecting ? (
+                <Button
+                  onClick={() => handleConnect(integration)}
+                  className="w-full"
+                  disabled={connectingProvider !== null}
+                >
+                  {connectingProvider === integration.provider ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Connecting...
