@@ -7,6 +7,7 @@ import { useDatabase } from '@/hooks/use-database'
 import { useDebounce } from '@/hooks/use-debounce'
 import { cn } from '@/lib/utils'
 import { Task } from '@/types'
+import type { DropAnimation } from '@dnd-kit/core'
 import {
   closestCenter,
   DndContext,
@@ -18,7 +19,6 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   arrayMove,
   SortableContext,
@@ -54,7 +54,7 @@ const TaskItem = memo(({ task, isCompleting, onComplete, onEdit, onDelete }: Tas
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: transition ? transition.replace(/transform \d+ms/, 'transform 150ms') : undefined,
+    transition: transition ? transition.replace(/transform \d+ms/, 'transform 20ms') : undefined,
   }
 
   const handleStartEdit = useCallback(() => {
@@ -109,7 +109,7 @@ const TaskItem = memo(({ task, isCompleting, onComplete, onEdit, onDelete }: Tas
           ? 'opacity 1s ease-out'
           : isDragging
             ? 'opacity 0.2s ease'
-            : style.transition || 'transform 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            : style.transition || 'transform 20ms ease-out',
       }}
       className={cn(
         'group flex items-center gap-3 rounded-lg bg-background px-3 py-2',
@@ -265,8 +265,18 @@ export default function TasksPage() {
     }),
   )
 
+  // Faster drop animation configuration for DragOverlay
+  const dropAnimation: DropAnimation = {
+    duration: 80, // nearly instant
+    easing: 'ease-out',
+  }
+
   // Fetch tasks
-  const { data: tasks = [], isLoading } = useQuery({
+  const {
+    data: tasks = [],
+    isLoading,
+    isPlaceholderData,
+  } = useQuery({
     queryKey: ['tasks', debouncedSearchQuery],
     queryFn: async () => {
       const query = db
@@ -283,6 +293,7 @@ export default function TasksPage() {
       const result = await query
       return result.filter((task) => task.item && task.item.trim() !== '')
     },
+    placeholderData: (previousData) => previousData,
   })
 
   // Reset optimistic order when tasks change significantly
@@ -467,39 +478,39 @@ export default function TasksPage() {
   const activeTask = useMemo(() => tasks.find((t) => t.id === activeId), [tasks, activeId])
 
   // Check if we should show empty state
-  const showEmptyState = !isLoading && tasks.length === 0 && !searchQuery && !isAddingNew
+  const showEmptyState = !isLoading && !isPlaceholderData && totalCount === 0 && !searchQuery && !isAddingNew
 
   return (
-    <div className="flex flex-col gap-6 p-4 w-full max-w-[760px] mx-auto">
-      <h1 className="text-4xl font-bold tracking-tight mb-2 text-primary">Tasks</h1>
+    <div className="flex flex-col gap-6 p-4 px-8 w-full max-w-[1200px] mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl font-bold tracking-tight">Tasks</h1>
+        {!showEmptyState && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="icon" onClick={() => setIsAddingNew(true)} disabled={isAddingNew}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Add Task</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
 
-      {!showEmptyState && (
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search tasks..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" onClick={() => setIsAddingNew(true)} disabled={isAddingNew}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Add Task</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-      )}
+      {/* Search - always visible to maintain focus and avoid flicker */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search tasks..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
 
       {showEmptyState ? (
         <div className="flex items-center justify-center p-16">
@@ -532,9 +543,8 @@ export default function TasksPage() {
               collisionDetection={closestCenter}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
-              modifiers={[restrictToVerticalAxis]}
             >
-              <SortableContext items={optimisticOrder} strategy={verticalListSortingStrategy}>
+              <SortableContext items={orderedTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {isAddingNew && <NewTaskInput onAdd={handleAddTask} onCancel={() => setIsAddingNew(false)} />}
 
@@ -563,7 +573,7 @@ export default function TasksPage() {
                 </div>
               </SortableContext>
 
-              <DragOverlay>
+              <DragOverlay dropAnimation={dropAnimation}>
                 {activeTask && (
                   <div className="flex items-center gap-3 rounded-lg bg-background px-3 py-2 shadow-lg border">
                     <GripVertical className="h-4 w-4 text-muted-foreground" />
