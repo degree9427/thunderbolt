@@ -3,9 +3,23 @@
 import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, Palette, Sparkles, Terminal } from 'lucide-react'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { SidebarFooter as ShadcnSidebarFooter, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
-import { Link } from 'react-router'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { NavLink } from '@/components/ui/nav-link'
+import {
+  SidebarFooter as ShadcnSidebarFooter,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar'
 
 export function SidebarFooter() {
   const { isMobile } = useSidebar()
@@ -16,7 +30,10 @@ export function SidebarFooter() {
         <SidebarMenuItem>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              >
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage />
                   <AvatarFallback className="rounded-lg">CN</AvatarFallback>
@@ -28,7 +45,12 @@ export function SidebarFooter() {
                 <ChevronsUpDown className="ml-auto size-4" />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" side={isMobile ? 'bottom' : 'right'} align="end" sideOffset={4}>
+            <DropdownMenuContent
+              className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+              side={isMobile ? 'bottom' : 'right'}
+              align="end"
+              sideOffset={4}
+            >
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
@@ -66,40 +88,40 @@ export function SidebarFooter() {
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link to="/settings/dev-settings">
+                  <NavLink to="/settings/dev-settings">
                     <Terminal className="mr-2 size-4" />
                     Dev Settings
-                  </Link>
+                  </NavLink>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/devtools">
+                  <NavLink to="/devtools">
                     <Terminal className="mr-2 size-4" />
                     Dev Tools
-                  </Link>
+                  </NavLink>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/ui-kit">
+                  <NavLink to="/ui-kit">
                     <Palette className="mr-2 size-4" />
                     UI Kit
-                  </Link>
+                  </NavLink>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/">
+                  <NavLink to="/">
                     <Palette className="mr-2 size-4" />
                     Welcome Screen
-                  </Link>
+                  </NavLink>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/settings/accounts">
+                  <NavLink to="/settings/accounts">
                     <BadgeCheck className="mr-2 size-4" />
                     Accounts
-                  </Link>
+                  </NavLink>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/settings/thunderbolt-bridge">
+                  <NavLink to="/settings/thunderbolt-bridge">
                     <Terminal className="mr-2 size-4" />
                     Thunderbolt Bridge
-                  </Link>
+                  </NavLink>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />

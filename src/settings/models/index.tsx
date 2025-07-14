@@ -694,7 +694,7 @@ export default function ModelsPage() {
   return (
     <div className="flex flex-col gap-4 p-4 w-full max-w-[760px] mx-auto">
       <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold tracking-tight mb-2 text-primary">Models</h1>
+        <h1 className="mt-8 text-4xl font-bold tracking-tight mb-2 text-primary">Models</h1>
         <Dialog open={isAddDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
             <Button variant="outline" size="icon">

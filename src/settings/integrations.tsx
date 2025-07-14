@@ -343,7 +343,7 @@ export default function IntegrationsPage() {
   return (
     <div className="max-w-[760px] mx-auto p-4">
       <div className="mb-6">
-        <h1 className="text-4xl font-bold tracking-tight mb-2 text-primary">Integrations</h1>
+        <h1 className="mt-8 text-4xl font-bold tracking-tight mb-2 text-primary">Integrations</h1>
       </div>
 
       {error && (

@@ -84,10 +84,10 @@ export default function AutomationsPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-6 p-4 px-8 w-full max-w-[1200px] mx-auto">
+        <div className="flex flex-col gap-6 p-4 w-full max-w-[1200px] mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <h1 className="text-4xl font-bold tracking-tight">Automations</h1>
+            <h1 className="mt-8 text-4xl font-bold tracking-tight">Automations</h1>
             <Button size="icon" onClick={() => setIsCreateModalOpen(true)}>
               <Plus className="h-4 w-4" />
             </Button>

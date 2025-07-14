@@ -1,10 +1,12 @@
 import { PanelLeft, PanelRight, Paperclip, SquarePen } from 'lucide-react'
 import { Button } from './components/ui/button'
+import { Header } from './components/ui/header'
 import { MailCard, MailCardList } from './components/ui/mail-card'
 import { MailThreadButton } from './components/ui/mail-thread-button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select'
+import { SidebarInset, SidebarProvider } from './components/ui/sidebar'
 
-export default function UiKitPage() {
+function UiKitContent() {
   const fruitOptions = [
     { value: 'apple', label: 'Apple' },
     { value: 'banana', label: 'Banana' },
@@ -54,87 +56,101 @@ export default function UiKitPage() {
       from: 'notifications@platform.com',
       to: 'me@example.com',
       date: 'Jan 10',
-      content: 'Your account password was recently changed. If you did not make this change, please contact support immediately.',
+      content:
+        'Your account password was recently changed. If you did not make this change, please contact support immediately.',
     },
   ]
 
   return (
-    <>
-      <div className="flex flex-col gap-4 p-4 w-full">
-        <h2 className="text-2xl font-bold mb-4">Select</h2>
-        <Select>
-          <SelectTrigger>
-            <SelectValue placeholder="Select a fruit" />
-          </SelectTrigger>
-          <SelectContent>
-            {fruitOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select>
-          <SelectTrigger>
-            <SelectValue placeholder="Select a fruit" />
-          </SelectTrigger>
-          <SelectContent>
-            {fruitOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="h-px bg-gray-200 dark:bg-gray-700 my-10" />
-        <h2 className="text-2xl font-bold mb-4">Button</h2>
-        <Button variant="outline">Outline Button</Button>
-        <Button variant="outline">
-          <Paperclip className="size-5" />
-          example.pdf
-        </Button>
-        <Button variant="ghost" className="w-fit pr-1 pl-1">
-          <PanelLeft className="size-5" />
-        </Button>
-        <Button variant="ghost" className="w-fit pr-1 pl-1">
-          <PanelRight className="size-5" />
-        </Button>
-        <Button variant="ghost" className="w-fit pr-1 pl-1">
-          <SquarePen className="size-5" />
-        </Button>
-        <Button>Default Button</Button>
-        <Button variant="ghost">Ghost Button</Button>
-        <MailThreadButton mailTitle="Mail Title Display" />
-        <div className="h-px bg-gray-200 dark:bg-gray-700 my-10" />
-        <h2 className="text-2xl font-bold">Mail Card List</h2>
-        <MailCardList>
-          {fakeEmails.map((email) => (
-            <MailCard
-              key={email.id}
-              id={email.id}
-              from={email.from}
-              to={email.to}
-              date={email.date}
-              content={email.content}
-              footer={
-                email.attachments &&
-                email.attachments.length > 0 && (
-                  <>
-                    {email.attachments.map((attachment) => (
-                      <Button key={attachment.filename} variant="outline" asChild>
-                        <a href={attachment.url} target="_blank" rel="noopener noreferrer">
-                          <Paperclip className="size-5" />
-                          {attachment.filename}
-                        </a>
-                      </Button>
-                    ))}
-                  </>
-                )
-              }
-            />
-          ))}
-        </MailCardList>
+    <SidebarInset>
+      <div className="flex flex-col h-full">
+        <Header />
+        <div className="flex-1 overflow-auto">
+          <div className="flex flex-col gap-4 p-4 w-full">
+            <h2 className="text-2xl font-bold mb-4">Select</h2>
+            <Select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a fruit" />
+              </SelectTrigger>
+              <SelectContent>
+                {fruitOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a fruit" />
+              </SelectTrigger>
+              <SelectContent>
+                {fruitOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="h-px bg-gray-200 dark:bg-gray-700 my-10" />
+            <h2 className="text-2xl font-bold mb-4">Button</h2>
+            <Button variant="outline">Outline Button</Button>
+            <Button variant="outline">
+              <Paperclip className="size-5" />
+              example.pdf
+            </Button>
+            <Button variant="ghost" className="w-fit pr-1 pl-1">
+              <PanelLeft className="size-5" />
+            </Button>
+            <Button variant="ghost" className="w-fit pr-1 pl-1">
+              <PanelRight className="size-5" />
+            </Button>
+            <Button variant="ghost" className="w-fit pr-1 pl-1">
+              <SquarePen className="size-5" />
+            </Button>
+            <Button>Default Button</Button>
+            <Button variant="ghost">Ghost Button</Button>
+            <MailThreadButton mailTitle="Mail Title Display" />
+            <div className="h-px bg-gray-200 dark:bg-gray-700 my-10" />
+            <h2 className="text-2xl font-bold">Mail Card List</h2>
+            <MailCardList>
+              {fakeEmails.map((email) => (
+                <MailCard
+                  key={email.id}
+                  id={email.id}
+                  from={email.from}
+                  to={email.to}
+                  date={email.date}
+                  content={email.content}
+                  footer={
+                    email.attachments &&
+                    email.attachments.length > 0 && (
+                      <>
+                        {email.attachments.map((attachment) => (
+                          <Button key={attachment.filename} variant="outline" asChild>
+                            <a href={attachment.url} target="_blank" rel="noopener noreferrer">
+                              <Paperclip className="size-5" />
+                              {attachment.filename}
+                            </a>
+                          </Button>
+                        ))}
+                      </>
+                    )
+                  }
+                />
+              ))}
+            </MailCardList>
+          </div>
+        </div>
       </div>
-    </>
+    </SidebarInset>
+  )
+}
+
+export default function UiKitPage() {
+  return (
+    <SidebarProvider>
+      <UiKitContent />
+    </SidebarProvider>
   )
 }
