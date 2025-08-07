@@ -1,13 +1,12 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import {
-  defaultChatStore,
+  readUIMessageStream,
   simulateReadableStream,
   streamText,
   wrapLanguageModel,
   type ToolSet,
   type UIMessage,
 } from 'ai'
-import { v7 as uuidv7 } from 'uuid'
 import { createDefaultMiddleware } from '../middleware/default'
 
 type SimulatedFetchOptions = {
@@ -181,148 +180,105 @@ export const sseToUIMessage = async (
   const chunks = parseSseLog(sseData)
 
   // ------------------------------------------------------------------
-  // Prepare a custom fetch that mimics the real /api/chat endpoint
-  // but streams from our pre-recorded SSE log. This is the same pattern
-  // used by MessageSimulator (src/devtools/message-simulator.tsx).
+  // Parse the SSE stream and convert to UIMessage format
+  // Use the streamText result directly to get the message content
   // ------------------------------------------------------------------
 
-  const customFetch: typeof fetch = Object.assign(
-    async (_requestInfo: RequestInfo | URL, init?: RequestInit) => {
-      // Build a Response that streams UI-Message chunks from the SSE log
-      const simulatedFetch = createSimulatedFetch(chunks, {
-        initialDelayInMs: options.initialDelayInMs,
-        chunkDelayInMs: options.chunkDelayInMs,
-      })
-
-      const provider = createOpenAICompatible({
-        name: 'test-provider',
-        baseURL: 'http://localhost:8000',
-        fetch: simulatedFetch,
-      })
-
-      const baseModel = provider('test-model')
-
-      const wrappedModel = wrapLanguageModel({
-        model: baseModel,
-        middleware: createDefaultMiddleware(options.startWithReasoning ?? false),
-      })
-
-      const result = streamText({
-        model: wrappedModel,
-        prompt: '<test>',
-        tools: createMockToolSet(),
-        abortSignal: (init?.signal ?? undefined) as AbortSignal | undefined,
-      })
-
-      return result.toUIMessageStreamResponse({
-        sendReasoning: true,
-        messageMetadata: () => ({ modelId: 'simulator' }),
-      })
-    },
-    {
-      preconnect: () => Promise.resolve(false),
-    },
-  )
-
-  // ------------------------------------------------------------------
-  // Set up a ChatStore instance (the underlying engine behind useChat)
-  // and submit a user message so that we exercise the exact same code
-  // paths that the real UI uses.
-  // ------------------------------------------------------------------
-
-  const chatStore = defaultChatStore({
-    api: '/api/chat',
-    fetch: customFetch,
-    generateId: uuidv7,
-    maxSteps: 10,
+  const simulatedFetch = createSimulatedFetch(chunks, {
+    initialDelayInMs: options.initialDelayInMs ?? 0,
+    chunkDelayInMs: options.chunkDelayInMs ?? 0,
   })
 
-  const chatId = `test-${uuidv7()}`
-  chatStore.addChat(chatId, [])
-
-  // Submit a single user message (mirrors the MessageSimulator prompt)
-  await chatStore.submitMessage({
-    chatId,
-    message: {
-      role: 'user',
-      parts: [{ type: 'text', text: '<test>' }],
-    } as any,
+  const provider = createOpenAICompatible({
+    name: 'test-provider',
+    baseURL: 'http://localhost:8000',
+    fetch: simulatedFetch,
   })
 
-  // Wait for streaming to finish (status 'ready' or 'error')
-  const waitForChatToFinish = async () => {
-    return await new Promise<void>((resolve, reject) => {
-      const interval = setInterval(() => {
-        const status = chatStore.getStatus(chatId)
-        if (status === 'ready') {
-          clearInterval(interval)
-          resolve()
-        } else if (status === 'error') {
-          clearInterval(interval)
-          reject(chatStore.getError(chatId))
-        }
-      }, 10)
-    })
+  const baseModel = provider('test-model')
+
+  const wrappedModel = wrapLanguageModel({
+    model: baseModel,
+    middleware: createDefaultMiddleware(options.startWithReasoning ?? false),
+  })
+
+  const result = streamText({
+    model: wrappedModel,
+    prompt: '<test>',
+    tools: createMockToolSet(),
+    _internal: {
+      generateId: () => '<DYNAMIC_ID>',
+    },
+  })
+
+  // ------------------------------------------------------------------
+  // Convert the stream to a UIMessage using SDK helpers
+  // ------------------------------------------------------------------
+  const uiStream = result.toUIMessageStream({
+    sendReasoning: true,
+    messageMetadata: () => ({ modelId: 'simulator' }),
+  })
+
+  const messageIterator = readUIMessageStream({ stream: uiStream })
+  let finalMessage: UIMessage | undefined
+  for await (const msg of messageIterator) {
+    finalMessage = msg
   }
 
-  await waitForChatToFinish()
-
-  // Collect the assistant's final message
-  const messages = chatStore.getMessages(chatId)
-  const actualMessage = messages.filter((m: any) => m.role === 'assistant').pop()
-
-  if (!actualMessage) {
-    throw new Error('Failed to convert SSE data into UIMessage.')
+  if (!finalMessage) {
+    throw new Error('No UIMessage produced from SSE log')
   }
 
-  return actualMessage
+  return finalMessage
+}
+
+/**
+ * Recursively normalizes common dynamic fields for snapshot testing
+ */
+const normalizeDynamicFields = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(normalizeDynamicFields)
+  }
+
+  const normalized = { ...obj }
+
+  // Normalize IDs
+  if (typeof normalized.id === 'string') {
+    normalized.id = '<DYNAMIC_ID>'
+  }
+  if (typeof normalized.toolCallId === 'string') {
+    normalized.toolCallId = '<DYNAMIC_ID>'
+  }
+
+  // Normalize timestamps
+  if (normalized.timestamp) {
+    normalized.timestamp = '<DYNAMIC_TIMESTAMP>'
+  }
+
+  // Recursively normalize nested objects
+  for (const key in normalized) {
+    if (typeof normalized[key] === 'object' && normalized[key] !== null) {
+      normalized[key] = normalizeDynamicFields(normalized[key])
+    }
+  }
+
+  return normalized
 }
 
 /**
  * Normalizes dynamic fields in UIMessage for snapshot testing
  */
 export const normalizeUIMessage = (message: any): any => {
-  const normalized = JSON.parse(JSON.stringify(message))
-
-  // Replace dynamic IDs with stable placeholders
-  if (normalized.id) {
-    normalized.id = '<DYNAMIC_ID>'
-  }
-
-  // Normalize tool invocation IDs
-  if (normalized.parts) {
-    normalized.parts = normalized.parts.map((part: any) => {
-      if (part.toolInvocation?.toolCallId) {
-        return {
-          ...part,
-          toolInvocation: {
-            ...part.toolInvocation,
-            toolCallId: '<DYNAMIC_TOOL_CALL_ID>',
-          },
-        }
-      }
-      return part
-    })
-  }
-
-  return normalized
+  return normalizeDynamicFields(JSON.parse(JSON.stringify(message)))
 }
 
 /**
  * Normalizes dynamic fields in test results for snapshot testing
  */
 export const normalizeStepResult = (step: any): any => {
-  const normalized = JSON.parse(JSON.stringify(step))
-
-  // Normalize response properties
-  if (normalized.response) {
-    if (normalized.response.id) {
-      normalized.response.id = '<DYNAMIC_ID>'
-    }
-    if (normalized.response.timestamp) {
-      normalized.response.timestamp = '<DYNAMIC_TIMESTAMP>'
-    }
-  }
-
-  return normalized
+  return normalizeDynamicFields(JSON.parse(JSON.stringify(step)))
 }

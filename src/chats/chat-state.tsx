@@ -1,20 +1,19 @@
 import { aiFetchStreamingResponse } from '@/ai/fetch'
 import ChatUI from '@/components/chat/chat-ui'
 import { useSetting } from '@/hooks/use-setting'
-import { getOrCreateChatStore } from '@/lib/chat-store-registry'
 import { getDefaultModelForThread, getTriggerPromptForThread } from '@/lib/dal'
 import { useMCP } from '@/lib/mcp-provider'
-import { Model, Prompt, SaveMessagesFunction } from '@/types'
+import { Model, Prompt, SaveMessagesFunction, type ThunderboltUIMessage } from '@/types'
 import { useChat } from '@ai-sdk/react'
 import { useQuery } from '@tanstack/react-query'
-import { UIMessage } from 'ai'
+import { DefaultChatTransport } from 'ai'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { v7 as uuidv7 } from 'uuid'
 
 interface ChatStateProps {
   id: string
   models: Model[]
-  initialMessages: UIMessage[] | undefined
+  initialMessages?: ThunderboltUIMessage[]
   saveMessages: SaveMessagesFunction
 }
 
@@ -78,15 +77,13 @@ export default function ChatState({ id, models, initialMessages, saveMessages }:
     [getEnabledClients, saveMessages],
   )
 
-  const chatStoreInstance = getOrCreateChatStore(id, {
-    initialMessages: initialMessages ?? [],
-    fetch: customFetch,
-  })
-
-  const chatHelpers = useChat({
+  const chatHelpers = useChat<ThunderboltUIMessage>({
     id,
-    chatStore: chatStoreInstance,
+    messages: initialMessages,
+    transport: new DefaultChatTransport({ fetch: customFetch }),
     generateId: uuidv7,
+    // Automatically send messages when the last one is a user message (used for automations)
+    sendAutomaticallyWhen: ({ messages }) => messages.length > 0 && messages[messages.length - 1].role === 'user',
     onFinish: async ({ message }) => {
       await saveMessages({
         id,
@@ -108,16 +105,22 @@ export default function ChatState({ id, models, initialMessages, saveMessages }:
   })
 
   // Auto-run assistant if thread ends with user message (e.g., automation) and no assistant response yet
+  const hasTriggeredRef = useRef(false)
   useEffect(() => {
-    // Ensure we have a model selected before attempting to reload
+    if (hasTriggeredRef.current) return
+
     if (
       selectedModelId &&
       status === 'ready' &&
       chatMessages.length > 0 &&
       chatMessages[chatMessages.length - 1].role === 'user'
     ) {
-      // Trigger LLM response once automatically
-      chatHelpers.reload().catch((err) => console.error('Auto reload error', err))
+      hasTriggeredRef.current = true
+      // Regenerate assistant response for the last user message
+      chatHelpers.regenerate().catch((err) => {
+        hasTriggeredRef.current = false
+        console.error('Auto regenerate error', err)
+      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, selectedModelId])
