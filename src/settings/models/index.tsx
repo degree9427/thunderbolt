@@ -26,12 +26,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { generateText } from 'ai'
 import { eq } from 'drizzle-orm'
 import ky from 'ky'
-import { Check, ChevronsUpDown, Loader2, Plus, Trash2, X } from 'lucide-react'
-import { useEffect, useReducer, useRef, type KeyboardEvent } from 'react'
+import { Check, ChevronsUpDown, Loader2, Lock, Plus, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useReducer, useRef, type KeyboardEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { v7 as uuidv7 } from 'uuid'
 import { z } from 'zod'
 import { getAllModels } from '@/lib/dal'
+import type { Model } from '@/types'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface AvailableModel {
   id: string
@@ -166,7 +168,7 @@ function modelReducer(state: ModelState, action: ModelAction): ModelState {
 
 const formSchema = z
   .object({
-    provider: z.enum(['thunderbolt', 'openai', 'custom', 'openrouter', 'flower']),
+    provider: z.enum(['thunderbolt', 'anthropic', 'openai', 'custom', 'openrouter', 'flower']),
     name: z.string().min(1, { message: 'Name is required.' }),
     model: z.string().min(1, { message: 'Model name is required.' }),
     customModel: z.string().optional(),
@@ -475,6 +477,57 @@ export default function ModelsPage() {
           dispatch({ type: 'FETCH_MODELS_SUCCESS', models: thunderboltModels })
           return
         }
+        case 'anthropic': {
+          const anthropicModels = [
+            {
+              id: 'claude-opus-4-1-20250805',
+              name: 'Claude Opus 4.1',
+              supports_tools: true,
+            },
+            {
+              id: 'claude-opus-4-20250514',
+              name: 'Claude Opus 4',
+              supports_tools: true,
+            },
+            {
+              id: 'claude-sonnet-4-20250514',
+              name: 'Claude Sonnet 4',
+              supports_tools: true,
+            },
+            {
+              id: 'claude-3-7-sonnet-20250219',
+              name: 'Claude Sonnet 3.7',
+              supports_tools: true,
+            },
+            {
+              id: 'claude-3-5-sonnet-20241022',
+              name: 'Claude Sonnet 3.5 (New)',
+              supports_tools: true,
+            },
+            {
+              id: 'claude-3-5-haiku-20241022',
+              name: 'Claude Haiku 3.5',
+              supports_tools: true,
+            },
+            {
+              id: 'claude-3-5-sonnet-20240620',
+              name: 'Claude Sonnet 3.5 (Old)',
+              supports_tools: true,
+            },
+            {
+              id: 'claude-3-haiku-20240307',
+              name: 'Claude Haiku 3',
+              supports_tools: true,
+            },
+            {
+              id: 'claude-3-opus-20240229',
+              name: 'Claude Opus 3',
+              supports_tools: true,
+            },
+          ]
+          dispatch({ type: 'FETCH_MODELS_SUCCESS', models: anthropicModels })
+          return
+        }
       }
 
       if (endpoint) {
@@ -617,7 +670,7 @@ export default function ModelsPage() {
       form.setValue('toolUsage', true, { shouldValidate: false, shouldDirty: false })
 
       // Fetch models if we have the necessary credentials
-      if (currentProvider === 'thunderbolt') {
+      if (['thunderbolt', 'anthropic'].includes(currentProvider)) {
         fetchAvailableModels(currentProvider)
       }
 
@@ -635,7 +688,10 @@ export default function ModelsPage() {
     const apiKey = watchedApiKey
     const url = watchedUrl
 
-    if (provider && (provider === 'thunderbolt' || (provider && apiKey) || (provider === 'custom' && url))) {
+    if (
+      provider &&
+      (['thunderbolt', 'anthropic'].includes(provider) || (provider && apiKey) || (provider === 'custom' && url))
+    ) {
       fetchAvailableModels(provider, apiKey, url)
     }
   }, [watchedApiKey, watchedUrl, form])
@@ -643,22 +699,23 @@ export default function ModelsPage() {
   const getProviderDisplay = (provider: string) => {
     switch (provider) {
       case 'thunderbolt':
+      case 'flower':
         return 'Thunderbolt'
+      case 'anthropic':
+        return 'Anthropic'
       case 'openai':
         return 'OpenAI'
       case 'custom':
         return 'Custom'
       case 'openrouter':
         return 'OpenRouter'
-      case 'flower':
-        return 'Flower'
       default:
         return provider
     }
   }
 
-  const getProviderInitial = (provider: string) => {
-    return provider[0].toUpperCase()
+  const getModelInitial = (model: Model) => {
+    return model.name[0].toUpperCase()
   }
 
   const handleDeleteModel = (modelId: string) => {
@@ -686,6 +743,16 @@ export default function ModelsPage() {
       allAvailableModels.find((m) => m.id === selectedModelId) || availableModels.find((m) => m.id === selectedModelId)
     return (model as any)?.supports_tools === true
   })()
+
+  const watchedModel = form.watch('model')
+
+  const canTestConnection = useMemo(() => {
+    if (watchedProvider === 'anthropic') {
+      return !!watchedModel && watchedApiKey
+    }
+
+    return !!watchedModel
+  }, [watchedApiKey, watchedModel, watchedProvider])
 
   return (
     <div className="flex flex-col gap-4 p-4 pb-12 w-full max-w-[760px] mx-auto">
@@ -719,7 +786,7 @@ export default function ModelsPage() {
                             <SelectItem value="thunderbolt">Thunderbolt</SelectItem>
                             <SelectItem value="openai">OpenAI</SelectItem>
                             <SelectItem value="openrouter">OpenRouter</SelectItem>
-                            <SelectItem value="flower">Flower</SelectItem>
+                            <SelectItem value="anthropic">Anthropic</SelectItem>
                             <SelectItem value="custom">Custom</SelectItem>
                           </SelectContent>
                         </Select>
@@ -782,11 +849,14 @@ export default function ModelsPage() {
 
                   // Show model selection if:
                   // 1. Thunderbolt (no API key needed)
+                  // 1. Anthropic (API key required for testing - model list is hardwired)
                   // 2. Other providers with API key
                   // 3. OpenAI Compatible with URL (API key optional)
                   const showModelSelection =
                     !modelLoadError &&
-                    (provider === 'thunderbolt' || (provider && apiKey) || (provider === 'custom' && url))
+                    (['thunderbolt', 'anthropic'].includes(provider) ||
+                      (provider && apiKey) ||
+                      (provider === 'custom' && url))
 
                   if (!showModelSelection) return null
 
@@ -925,24 +995,41 @@ export default function ModelsPage() {
                 )}
 
                 {/* Display Name - Only show when model is selected */}
-                {(form.watch('model') || selectedModelId === 'custom') && (
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Display Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g., GPT-4 Turbo" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                {(watchedModel || selectedModelId === 'custom') && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Display Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="e.g., GPT-4 Turbo" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="toolUsage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <div className="flex items-center gap-3">
+                              <Checkbox checked={field.value} onCheckedChange={field.onChange} id="toolUsage" />
+                              <FormLabel htmlFor="toolUsage">Enable tool use</FormLabel>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
                 )}
 
                 {/* Warning when model lacks tool support */}
-                {!supportsToolsSelected && (form.watch('model') || selectedModelId === 'custom') && (
+                {!supportsToolsSelected && (watchedModel || selectedModelId === 'custom') && (
                   <StatusCard
                     title={
                       <>
@@ -955,7 +1042,7 @@ export default function ModelsPage() {
                 )}
 
                 {/* Test Connection Button */}
-                {form.watch('model') && (
+                {canTestConnection && (
                   <Button
                     type="button"
                     onClick={testConnection}
@@ -1005,7 +1092,7 @@ export default function ModelsPage() {
                   <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={addModelMutation.isPending || connectionStatus !== 'success'}>
+                  <Button type="submit" disabled={addModelMutation.isPending}>
                     {addModelMutation.isPending ? 'Adding...' : 'Add Model'}
                   </Button>
                 </div>
@@ -1026,10 +1113,24 @@ export default function ModelsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="flex items-center justify-center bg-primary text-primary-foreground size-8 rounded-md font-medium flex-shrink-0">
-                      {getProviderInitial(model.provider)}
+                      {getModelInitial(model)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <CardTitle className="text-lg font-medium">{model.name}</CardTitle>
+                      <CardTitle className="text-lg font-medium flex flex-row items-center gap-2">
+                        {!!model.isConfidential && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Lock className="size-3.5" />
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">
+                                <p>Encrypted</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        {model.name}
+                      </CardTitle>
                       <p className="text-sm text-muted-foreground">
                         {getProviderDisplay(model.provider)} - {model.model}
                       </p>
@@ -1125,7 +1226,7 @@ export default function ModelsPage() {
                         <span className="text-sm font-mono truncate max-w-[300px]">{model.url}</span>
                       </div>
                     )}
-                    {model.provider === 'thunderbolt' && (
+                    {['thunderbolt', 'flower'].includes(model.provider) && (
                       <div className="text-sm text-muted-foreground">Uses Thunderbolt cloud service</div>
                     )}
                   </div>
