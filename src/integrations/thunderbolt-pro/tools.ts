@@ -4,6 +4,8 @@ import type { ToolConfig } from '@/types'
 import ky from 'ky'
 import { z } from 'zod'
 
+const requestTimeout = 5000
+
 /**
  * Schemas for the pro tools
  */
@@ -62,6 +64,7 @@ export const search = async (params: SearchParams): Promise<string> => {
     const cloudUrl = await getCloudUrl()
     const response = await ky
       .post(`${cloudUrl}/pro/search`, {
+        timeout: requestTimeout,
         json: {
           query: params.query,
           max_results: params.max_results || 10,
@@ -87,6 +90,7 @@ export const fetchContent = async (params: FetchContentParams): Promise<FetchCon
     const cloudUrl = await getCloudUrl()
     const response = await ky
       .post(`${cloudUrl}/pro/fetch-content`, {
+        timeout: requestTimeout,
         json: {
           url: params.url,
         },
@@ -111,6 +115,7 @@ export const getCurrentWeather = async (params: WeatherParams): Promise<string> 
     const cloudUrl = await getCloudUrl()
     const response = await ky
       .post(`${cloudUrl}/pro/weather/current`, {
+        timeout: requestTimeout,
         json: {
           location: params.location,
           region: params.region,
@@ -138,6 +143,7 @@ export const getWeatherForecast = async (params: WeatherParams): Promise<Weather
     const cloudUrl = await getCloudUrl()
     const response = await ky
       .post(`${cloudUrl}/pro/weather/forecast`, {
+        timeout: requestTimeout,
         json: {
           location: params.location,
           region: params.region,
@@ -167,6 +173,7 @@ export const searchLocations = async (params: SearchLocationParams): Promise<str
     const cloudUrl = await getCloudUrl()
     const response = await ky
       .post(`${cloudUrl}/pro/locations/search`, {
+        timeout: requestTimeout,
         json: {
           query: params.query,
           region: params.region,
