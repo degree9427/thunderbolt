@@ -40,6 +40,12 @@ interface ModificationIndicatorProps {
    * @default "Modified item"
    */
   ariaLabel?: string
+  /**
+   * Whether to show a confirmation step before resetting
+   * When false, clicking "Reset to Default" immediately resets without confirmation
+   * @default false
+   */
+  requireConfirmation?: boolean
 }
 
 /**
@@ -57,12 +63,18 @@ export const ModificationIndicator = ({
   customMessage = "You've customized this setting.",
   confirmMessage = 'Are you sure? You will lose any changes that you made.',
   ariaLabel = 'Modified item',
+  requireConfirmation = false,
 }: ModificationIndicatorProps) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
 
   const handleResetClick = () => {
-    setShowConfirmation(true)
+    if (requireConfirmation) {
+      setShowConfirmation(true)
+    } else {
+      onReset()
+      setIsPopoverOpen(false)
+    }
   }
 
   const handleResetConfirm = () => {

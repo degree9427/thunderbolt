@@ -141,6 +141,13 @@ export const defaultSettingCurrency: Setting = {
   defaultHash: null,
 }
 
+export const defaultSettingIntegrationsProIsEnabled: Setting = {
+  key: 'integrations_pro_is_enabled',
+  value: 'true',
+  updatedAt: null,
+  defaultHash: null,
+}
+
 /**
  * Array of all default settings for iteration
  */
@@ -162,4 +169,5 @@ export const defaultSettings: ReadonlyArray<Setting> = [
   defaultSettingDateFormat,
   defaultSettingTimeFormat,
   defaultSettingCurrency,
+  defaultSettingIntegrationsProIsEnabled,
 ] as const

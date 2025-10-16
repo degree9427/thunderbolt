@@ -15,13 +15,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { SearchInput } from '@/components/ui/search-input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { deleteAutomation, getAllPrompts, resetAutomationToDefault, runAutomation } from '@/dal'
 import { DatabaseSingleton } from '@/db/singleton'
 import { triggersTable } from '@/db/tables'
 import { defaultAutomations } from '@/defaults/automations'
 import { isAutomationModified } from '@/defaults/utils'
 import { useSettings } from '@/hooks/use-settings'
 import { trackEvent } from '@/lib/analytics'
-import { deleteAutomation, getAllPrompts, resetAutomationToDefault, runAutomation } from '@/dal'
 import { cn } from '@/lib/utils'
 import type { Prompt, Trigger } from '@/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -292,6 +292,7 @@ const PromptCard = memo(({ prompt, triggersEnabled, onRun, onEdit, onDelete, onR
               onReset={() => onReset(prompt.id)}
               customMessage="You've customized this automation."
               ariaLabel="Modified automation"
+              requireConfirmation
             >
               {prompt.title || 'Untitled Automation'}
             </ModificationIndicator>

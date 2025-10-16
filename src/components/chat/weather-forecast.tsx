@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 import { convertTemperature, getWeatherMetadata, type WeatherForecastData } from '@/lib/weather-forecast'
 import dayjs from 'dayjs'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader } from '../ui/card'
 import { Skeleton } from '../ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
@@ -12,6 +12,11 @@ export const WeatherForecast = ({ location, days = [], temperature_unit }: Weath
   const [temperatureUnit, setTemperatureUnit] = useState<'c' | 'f'>(temperature_unit)
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0)
+
+  // Sync local state with prop when it changes
+  useEffect(() => {
+    setTemperatureUnit(temperature_unit)
+  }, [temperature_unit])
 
   const selectedDayMetadata = useMemo(
     () =>
@@ -38,11 +43,12 @@ export const WeatherForecast = ({ location, days = [], temperature_unit }: Weath
           onValueChange={(value) => value && setTemperatureUnit(value as 'c' | 'f')}
           aria-label="Temperature Unit"
           variant="outline"
+          className="cursor-pointer"
         >
-          <ToggleGroupItem value="c" aria-label="Celsius">
+          <ToggleGroupItem value="c" aria-label="Celsius" className="cursor-pointer">
             °C
           </ToggleGroupItem>
-          <ToggleGroupItem value="f" aria-label="Fahrenheit">
+          <ToggleGroupItem value="f" aria-label="Fahrenheit" className="cursor-pointer">
             °F
           </ToggleGroupItem>
         </ToggleGroup>
