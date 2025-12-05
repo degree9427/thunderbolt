@@ -1,5 +1,6 @@
 import { Input } from '@/components/ui/input'
 import type { ChatThread } from '@/layout/sidebar/types'
+import { sortByOrder } from '@/lib/sort-by-order'
 import { cn } from '@/lib/utils'
 import type { Model } from '@/types'
 import { Lock, Plus, Search } from 'lucide-react'
@@ -9,6 +10,12 @@ import type { CategorizedModels, ModelSelectorProps } from './types'
 type ModelSelectorContentProps = Pick<ModelSelectorProps, 'models' | 'selectedModel' | 'chatThread' | 'onAddModels'> & {
   onSelect: (modelId: string) => void
 }
+
+/**
+ * Explicit sort order for provided models by name.
+ * Models not in this list will appear at the end, sorted alphabetically.
+ */
+const PROVIDED_MODEL_ORDER = ['gpt-oss', 'mistral-medium-3.1', 'mistral-large-3', 'sonnet-4.5']
 
 const getModelDescription = (model: Model): string => {
   if (model.description) return model.description
@@ -33,7 +40,10 @@ const categorizeModels = (models: Model[]): CategorizedModels => {
     }
   }
 
-  return { provided, custom }
+  return {
+    provided: sortByOrder(provided, PROVIDED_MODEL_ORDER, (m) => m.name),
+    custom,
+  }
 }
 
 type ModelItemProps = {
