@@ -10,6 +10,7 @@ export const schema = z.object({
     provider: z.enum(['google', 'microsoft', '']),
     service: z.enum(['email', 'calendar', 'both']),
     reason: z.string(),
+    override: z.enum(['true', '']),
   }),
 })
 

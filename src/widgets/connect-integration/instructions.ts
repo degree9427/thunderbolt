@@ -1,102 +1,103 @@
 /**
  * AI Instructions for the connect-integration widget
  */
-export const instructions = `## Connect Integration
+export const instructions = `## Connect Integration Widget
 
-<widget:connect-integration provider="google" service="calendar" reason="to view your upcoming events" />
+### Tools to check
 
-All attributes are required. Use empty string ("") for provider when not specified, and empty string for reason when using default message.
+- Google: google_check_inbox, google_search_emails, google_get_email, google_draft_email, google_check_calendar, google_search_drive, google_get_drive_file_content
+- Microsoft: microsoft_list_messages, microsoft_get_message, microsoft_search_onedrive, microsoft_get_onedrive_file_content
 
-### Tools to use
+If these tools are available, use them directly. Only show this widget when tools are missing AND user requests email/calendar.
 
-- For email: Check if "google_check_inbox", "google_search_emails", "google_get_email", "google_draft_email", or "microsoft_list_messages" are available
+### Widget Syntax
 
-- For calendar: Check if "google_check_calendar" is available (Microsoft calendar tools may not exist yet)
+<widget:connect-integration provider="" service="email" reason="" override="" />
 
-**IMPORTANT:** If you see these tools in your available tools list, the integration is connected. Use the tools directly instead of showing the widget.
+Attributes (all required):
+- provider: "google", "microsoft", or "" (empty = user chooses)
+- service: "email", "calendar", or "both"
+- reason: "" or brief explanation
+- override: "" normally, "true" only after user agreed when status contained PROMPTS_DISABLED
 
-### Display Behavior
+### Provider Selection
 
-CRITICAL: When showing this widget, display ONLY the widget tag - do not add any introductory text, explanations, or messages before or after it. The widget itself contains all necessary information for the user.
+- "google" → Gmail, Google Calendar, or when user mentions "Google", "Gmail"
+- "microsoft" → Outlook, or when user mentions "Microsoft", "Outlook", "Office 365"
+- "" (empty) → User didn't specify a provider
 
-NEVER include text like:
-- "Here's a widget to connect..."
-- "I'll help you connect..."
-- "You need to connect..."
-- Any text before or after the widget tag
+### Service Selection
 
-ONLY output the widget tag itself, nothing else.
+- "email" → Check inbox, search emails, read/send emails
+- "calendar" → View events, check schedule
+- "both" → Only when request explicitly needs BOTH (rare)
 
-### Use this widget when:
+### BEFORE showing widget, check "Integration status:" in Context
 
-1. User requests email/calendar functionality AND the required tool is missing from your available tools list
+Status may contain multiple values (e.g., "GOOGLE_DISABLED, PROMPTS_DISABLED"). Never mention status names to the user.
 
-2. User explicitly asks to use a feature (not just asking about it)
+**Check in this order:**
 
-3. You need tools like:
+1. **BOTH providers disabled** (status contains both GOOGLE_DISABLED and MICROSOFT_DISABLED):
+   - DO NOT show widget
+   - Say: "Your integrations are disabled. You can enable them in Settings → Integrations."
 
-   - google_check_inbox, google_search_emails, google_get_email, google_draft_email (Google email)
-   - google_check_calendar (Google calendar)
-   - microsoft_list_messages, microsoft_get_message (Microsoft email)
+2. **Only GOOGLE_DISABLED** (status contains GOOGLE_DISABLED but NOT MICROSOFT_DISABLED):
+   - If user requested Google/Gmail or didn't specify provider → DO NOT show widget. Say: "Your Google integration is disabled. You can enable it in Settings → Integrations."
+   - If user requested Microsoft/Outlook → If Microsoft is not connected, show widget with provider="microsoft" (unaffected)
 
-**CRITICAL:** If you don't have access to the required email/calendar tools, you MUST show this widget to connect the integration. DO NOT explain that you don't have access - show the widget instead.
+3. **Only MICROSOFT_DISABLED** (status contains MICROSOFT_DISABLED but NOT GOOGLE_DISABLED):
+   - If user requested Microsoft/Outlook or didn't specify provider → DO NOT show widget. Say: "Your Microsoft integration is disabled. You can enable it in Settings → Integrations."
+   - If user requested Google/Gmail → if Google is not connected, show widget with provider="google" (unaffected)
 
-### DO NOT use this widget if:
+4. **PROMPTS_DISABLED** (after checking provider statuses above):
+   - If showing widget is blocked by provider status → follow that rule (don't show)
+   - Otherwise, DO NOT show widget immediately. Ask: "I can't access your [email/calendar] right now. Would you like to connect your account?"
+   - Only if user agrees → show widget with override="true"
 
-- Tool is already available in your tool list (integration is connected and enabled) → Use the tool directly
+5. **READY** (no special conditions):
+   - Show widget directly, no extra text
 
-- User is just exploring/asking about features: "What can you do with Gmail?", "Can you check email?", "How does email integration work?"
+### Display Rule
 
-- User is asking for general help or information
+When no blocking condition applies and PROMPTS_DISABLED is not set, output ONLY the widget tag. No text before or after.
 
-- User mentions integrations but doesn't want to use them right now: "Maybe later", "I'll connect it myself", "Just wondering"
+### Examples
 
-- The request doesn't require an integration (general questions, non-email/calendar tasks)
+**Status: READY, tools missing:**
+- "Summarize my emails" → \`<widget:connect-integration provider="" service="email" reason="" override="" />\`
+- "Check my Gmail" → \`<widget:connect-integration provider="google" service="email" reason="" override="" />\`
+- "What's on my Outlook calendar?" → \`<widget:connect-integration provider="microsoft" service="calendar" reason="" override="" />\`
 
-**IMPORTANT:** If tools are missing, DO NOT say "I don't have access" or "I cannot fetch" - show the widget instead.
+**Status: GOOGLE_DISABLED (only Google disabled):**
+- "Check my Gmail" → "Your Google integration is disabled. You can enable it in Settings → Integrations."
+- "Check my emails" → "Your Google integration is disabled. You can enable it in Settings → Integrations."
+- "Check my Outlook" → \`<widget:connect-integration provider="microsoft" service="email" reason="" override="" />\`
 
-### Provider Selection:
+**Status: MICROSOFT_DISABLED (only Microsoft disabled):**
+- "Check my Outlook" → "Your Microsoft integration is disabled. You can enable it in Settings → Integrations."
+- "Check my emails" → "Your Microsoft integration is disabled. You can enable it in Settings → Integrations."
+- "Check my Gmail" → \`<widget:connect-integration provider="google" service="email" reason="" override="" />\`
 
-- "google" → For Gmail or Google Calendar requests, or when user mentions "Google", "Gmail", "Google Calendar"
-- "microsoft" → For Outlook or Microsoft Calendar requests, or when user mentions "Microsoft", "Outlook", "MS", "Office 365"
-- If user doesn't specify provider: Use provider="" (empty string) - the widget will automatically:
-  - Use the single connected integration if only one is available
-  - Show both options if both are connected or neither is connected
+**Status: GOOGLE_DISABLED, MICROSOFT_DISABLED (both disabled):**
+- Any email/calendar request → "Your integrations are disabled. You can enable them in Settings → Integrations."
 
-### Service Types:
+**Status: PROMPTS_DISABLED:**
+- User: "Check my email"
+- You: "I can't access your emails right now. Would you like to connect your email account?"
+- User: "Yes"
+- You: \`<widget:connect-integration provider="" service="email" reason="" override="true" />\`
 
-- "email" → For email-only requests (check inbox, search emails, read/send emails)
-- "calendar" → For calendar-only requests (view events, check schedule)
-- "both" → ONLY when the request explicitly requires BOTH email AND calendar in a single action (rare)
+**Status: GOOGLE_DISABLED, PROMPTS_DISABLED:**
+- User: "Check my Outlook" → Follow PROMPTS_DISABLED flow, then show with provider="microsoft" and override="true"
+- User: "Check my Gmail" → "Your Google integration is disabled. You can enable it in Settings → Integrations."
 
-Most requests are either email OR calendar, not both. Use "both" sparingly:
+**Tools available:**
+- "Summarize my emails" + google_check_inbox exists → Use the tool directly, don't show widget
 
-- "Show me emails and my calendar events for today" → service="both"
-- "Check my email" → service="email" (not "both")
-- "What's on my calendar?" → service="calendar" (not "both")
-
-### Examples:
-
-CORRECT - Tool missing, user wants to use feature:
-
-- "Summarize my last 10 emails" → Tool not available, user didn't specify provider → <widget:connect-integration provider="" service="email" reason="" />
-- "What's on my calendar today?" → Tool not available, user didn't specify provider → <widget:connect-integration provider="" service="calendar" reason="" />
-- "Check my Gmail inbox" → Tool not available, user specified Gmail → <widget:connect-integration provider="google" service="email" reason="to check your inbox" />
-- "Show me my Outlook emails" → Tool not available, user specified Outlook → <widget:connect-integration provider="microsoft" service="email" reason="" />
-
-WRONG - Tool missing but explaining instead of showing widget:
-
-- "Summarize my last 10 emails" → Tool not available → ❌ "I don't have access to your email" or "I cannot fetch emails" → Instead: Show widget <widget:connect-integration provider="" service="email" reason="" />
-
-CORRECT - Tool already available, use tool directly:
-- "Summarize my last 10 emails" → Tool "google_check_inbox" exists in your tools → Call google_check_inbox tool directly, do NOT show widget
-
-WRONG - User just asking questions:
-
-- "Can you check email?" → User asking about capability → Explain feature, don't show widget
-- "What email providers do you support?" → Informational question → Answer without widget
-- "How do I connect Gmail?" → User asking how → Explain process, don't show widget automatically
-
-WRONG - Tool already available:
-- "Summarize my last 10 emails" → Tool "google_check_inbox" exists → Use the tool, don't show widget
+**WRONG:**
+- ❌ "I don't have access to your email" when you should show widget
+- ❌ Showing widget when tools are available
+- ❌ Blocking Microsoft widget because Google is disabled (or vice versa)
+- ❌ Mentioning status names like "PROMPTS_DISABLED" to the user
 `
