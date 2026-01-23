@@ -1,3 +1,5 @@
+import { sendEmail, shouldSkipEmail } from '@/lib/resend'
+
 /** Deep link base URL for mobile apps (iOS/Android) */
 const DEEP_LINK_HOST = 'https://thunderbolt.io'
 
@@ -60,65 +62,30 @@ export const buildVerifyUrl = (origin: string, email: string, otp: string, reque
   return `${baseUrl}/auth/verify?${params.toString()}`
 }
 
-type ResendClient = {
-  emails: {
-    send: (params: {
-      from: string
-      to: string
-      template: {
-        id: string
-        variables: Record<string, string>
-      }
-    }) => Promise<{ data?: { id: string } | null; error?: { message: string } | null }>
-  }
-}
-
 type SendSignInEmailParams = {
-  resend: ResendClient | null
   email: string
   otp: string
   verifyUrl: string
-  isProduction: boolean
 }
 
 /**
  * Send sign-in email with both OTP code and a clickable link
  */
-export const sendSignInEmail = async ({
-  resend,
-  email,
-  otp,
-  verifyUrl,
-  isProduction,
-}: SendSignInEmailParams): Promise<void> => {
-  console.info(`📧 Sending sign-in email to ${email}`)
-
-  if (!resend) {
-    if (isProduction) {
-      console.error('❌ Cannot send email: RESEND_API_KEY is not configured')
-      throw new Error('Email service not configured')
-    }
+export const sendSignInEmail = async ({ email, otp, verifyUrl }: SendSignInEmailParams): Promise<void> => {
+  if (shouldSkipEmail()) {
     console.info(`🔗 [DEV] Verify URL (no email sent): ${verifyUrl}`)
     console.info(`🔢 [DEV] OTP code: ${otp}`)
     return
   }
 
-  const { data, error } = await resend.emails.send({
-    from: 'hello@auth.thunderbolt.io',
+  const data = await sendEmail({
     to: email,
-    template: {
-      id: 'magic-link',
-      variables: {
-        otp_code: otp,
-        magic_link: verifyUrl,
-      },
+    templateId: 'magic-link',
+    variables: {
+      otp_code: otp,
+      magic_link: verifyUrl,
     },
   })
-
-  if (error) {
-    console.error('❌ Failed to send sign-in email:', error)
-    throw new Error(`Failed to send email: ${error.message}`)
-  }
 
   console.info(`✅ Sign-in email sent successfully. ID: ${data?.id}`)
 }
