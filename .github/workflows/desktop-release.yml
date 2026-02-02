@@ -162,20 +162,13 @@ jobs:
           # Clean up certificate
           rm certificate.p12
 
-          # List available signing identities for debugging
-          echo "Available signing identities:"
-          security find-identity -v -p codesigning build.keychain
-
           # Auto-detect signing identity from imported certificate
-          # Extract the identity name (everything between quotes in the output)
           DETECTED_IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep -o '"[^"]*"' | head -1 | tr -d '"')
 
           if [ -z "$DETECTED_IDENTITY" ]; then
-            echo "❌ No valid signing identity found in keychain"
+            echo "No valid signing identity found in keychain"
             exit 1
           fi
-
-          echo "✅ Detected signing identity: $DETECTED_IDENTITY"
 
           # Setup App Store Connect API key
           mkdir -p ~/private_keys
