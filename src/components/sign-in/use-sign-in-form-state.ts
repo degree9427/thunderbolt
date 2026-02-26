@@ -168,9 +168,10 @@ export const useSignInFormState = ({
         return
       }
 
-      // Store the token for bearer auth
-      if (result.data?.token) {
-        setAuthToken(result.data.token)
+      // Store the token for bearer auth (backend returns { session, user }; session.token is the bearer token)
+      const token = (result.data as { session?: { token?: string } } | undefined)?.session?.token
+      if (token) {
+        setAuthToken(token)
       }
 
       const isNewUser = isNewAuthUser(result.data?.user)

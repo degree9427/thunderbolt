@@ -82,9 +82,7 @@ export const useWaitlistState = ({ authClient, onVerified }: UseWaitlistStateOpt
     dispatch({ type: 'START_JOINING' })
 
     try {
-      await httpClient
-        .post('waitlist/join', { json: { email: trimmedEmail } })
-        .json<{ success: boolean }>()
+      await httpClient.post('waitlist/join', { json: { email: trimmedEmail } }).json<{ success: boolean }>()
 
       dispatch({ type: 'JOIN_SUCCESS' })
     } catch (error) {
@@ -109,12 +107,14 @@ export const useWaitlistState = ({ authClient, onVerified }: UseWaitlistStateOpt
         return
       }
 
-      if (!result.data?.token) {
+      // Backend auth hook returns { session, user }; session.token is the bearer token
+      const token = (result.data as { session?: { token?: string } } | undefined)?.session?.token
+      if (!token) {
         dispatch({ type: 'VERIFY_ERROR', payload: 'Verification failed. Please try again.' })
         return
       }
 
-      await setAuthToken(result.data.token)
+      await setAuthToken(token)
 
       const isNewUser = isNewAuthUser(result.data.user)
       await onSignInSuccess(isNewUser)
