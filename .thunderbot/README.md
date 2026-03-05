@@ -1,5 +1,34 @@
 # thunderbot
 
+Thunderbot is an Autonomous coding agent using Claude Code that helps us build Thunderbolt, an AI client from the Thunderbird team (coming soon). It uses the following workflow - most steps correspond to commands that are useful for human engineers, too:
+
+1. Checks that it has all necessary tools and that they are authenticated
+2. Checks who the current git author is
+3. Finds a task in Linear that it thinks it can handle
+4. Assigns the task to itself
+5. Creates a worktree for a new branch (or existing)
+6. Spins up the dev environment in Docker
+7. Launches 2-3 subagents that explore the task and codebase
+8. Generates a detailed plan / spec
+9. Updates Linear ticket with its plan
+10. Works on the task
+11. Reviews and improves its code quality (/thunderimprove - our version of Claude's /simplify)
+12. Checks for and fixes any security issues with /security-review (Claude built-in skill)
+13. Creates clean, conventional, atomic commits
+14. Submits a PR
+15. Monitors the PR for comments and failures
+16. Fixes any comments or failures
+17. Repeats steps 15-16 until everything is done
+18. Cleans up and outputs a report
+19. Goes back to step 1 (in daemon mode)
+
+## Ideal Tasks
+Thunderbot is good at well-scoped tasks where it can establish a feedback loop to check its work. This tends to be straightforward features, bugs, and anything where automated tests are able to give it clear feedback on whether the task was done correctly. With Claude's /chrome feature, it is able to handle browser-based debugging and feedback very well as long as it is clearly able to tell whether the task was completed properly.
+
+## Safety
+- We recommend running this inside of a Docker container or VM and then giving it --dangerously-skip-permissions. This way it does not need to constantly stop and ask for permission to do things but has a limited blast-radius when things go wrong.
+- It operates using CLI tools, so you'll need to set up those tools for it by logging in or setting API keys for them. You should create accounts or API keys for it that have limited permissions. For example, it should not have the ability to push to the main branch on GitHub. Treat it like an open-source contributor.
+
 Reusable [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for development workflows. Use them as-is or customize them for your project.
 
 ## Install
