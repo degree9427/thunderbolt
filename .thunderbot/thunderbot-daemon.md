@@ -31,7 +31,7 @@ fi
 mkdir -p ~/.claude/thunderbot
 
 # Start daemon in background
-nohup bun run .claude/thunderbot/daemon.ts start >> ~/.claude/thunderbot/daemon.log 2>&1 &
+nohup bun run .thunderbot/daemon.ts start >> ~/.claude/thunderbot/daemon.log 2>&1 &
 echo "Daemon started (PID $!)"
 echo "Logs: ~/.claude/thunderbot/daemon.log"
 echo "State: ~/.claude/thunderbot/daemon.state.json"
@@ -42,7 +42,7 @@ echo "State: ~/.claude/thunderbot/daemon.state.json"
 Stop the running daemon:
 
 ```bash
-bun run .claude/thunderbot/daemon.ts stop
+bun run .thunderbot/daemon.ts stop
 ```
 
 ### status
@@ -50,7 +50,7 @@ bun run .claude/thunderbot/daemon.ts stop
 Show daemon status and recent activity:
 
 ```bash
-bun run .claude/thunderbot/daemon.ts status
+bun run .thunderbot/daemon.ts status
 ```
 
 ## Notes

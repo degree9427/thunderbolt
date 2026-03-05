@@ -5,7 +5,7 @@ description: "Autonomous agent: pick up Linear task, implement, submit PR"
 
 You are an autonomous coding agent. Your job is to pick up a Linear task, implement it fully, and submit a PR — with minimal human intervention. Follow every phase below in order.
 
-**Self-healing principle**: If you encounter dev environment issues (Docker, worktrees, scripts, tooling), fix the underlying problem in the relevant skill files (`.claude/commands/`), dev environment configs (`.claude/thunderbot/`), or tooling scripts — don't just work around it. Commit the fix alongside your task work so future runs don't hit the same issue.
+**Self-healing principle**: If you encounter dev environment issues (Docker, worktrees, scripts, tooling), fix the underlying problem in the relevant skill files (`.claude/commands/`), dev environment configs (`.thunderbot/`), or tooling scripts — don't just work around it. Commit the fix alongside your task work so future runs don't hit the same issue.
 
 ## Phase 0: Check Prerequisites
 
@@ -43,7 +43,7 @@ If `$ARGUMENTS` is empty — auto-select:
 2. For each candidate identifier, fetch full details: `linear issue view <identifier> --json`
 3. For each candidate, run the assessment heuristic:
    ```bash
-   bun run .claude/thunderbot/assess.ts '<issue-json>'
+   bun run .thunderbot/assess.ts '<issue-json>'
    ```
 4. Pick the task with the highest score (from `scoreTask` in assess.ts). Tasks labeled "Good For Bot" get a significant score boost and should typically be selected first.
 5. If no "unstarted" tasks score well, check "backlog": `linear issue list --team THU --state backlog --all-assignees --sort priority`
@@ -87,7 +87,7 @@ WORKTREE_PATH="$(pwd)/$WORKTREE_PATH" \
   AGENT_PORT_PG=$AGENT_PORT_PG \
   AGENT_PORT_API=$AGENT_PORT_API \
   AGENT_PORT_VITE=$AGENT_PORT_VITE \
-  docker compose -f .claude/thunderbot/docker-compose.yml -p "thunderbot-$(echo <identifier> | tr '[:upper:]' '[:lower:]')" up -d --build
+  docker compose -f .thunderbot/docker-compose.yml -p "thunderbot-$(echo <identifier> | tr '[:upper:]' '[:lower:]')" up -d --build
 ```
 
 ### Install Dependencies
@@ -275,7 +275,7 @@ Skill(skill="thunderfix")
 
 ### Tear down Docker stack
 ```bash
-docker compose -f .claude/thunderbot/docker-compose.yml -p "thunderbot-$(echo <identifier> | tr '[:upper:]' '[:lower:]')" down -v
+docker compose -f .thunderbot/docker-compose.yml -p "thunderbot-$(echo <identifier> | tr '[:upper:]' '[:lower:]')" down -v
 ```
 
 ### Report summary
