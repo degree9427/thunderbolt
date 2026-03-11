@@ -1,5 +1,5 @@
 import { desc, eq } from 'drizzle-orm'
-import { DatabaseSingleton } from '@/db/singleton'
+import type { AnyDrizzleDatabase } from '@/db/database-interface'
 import { devicesTable } from '@/db/tables'
 
 export type Device = {
@@ -14,17 +14,15 @@ export type Device = {
 /**
  * Gets a single device by id from the local DB (synced via PowerSync).
  */
-export const getDevice = async (deviceId: string): Promise<Device | null> => {
-  const db = DatabaseSingleton.instance.db
-  const row = await db.select().from(devicesTable).where(eq(devicesTable.id, deviceId)).get()
-  return (row ?? null) as Device | null
+export const getDevice = (db: AnyDrizzleDatabase, deviceId: string) => {
+  return db.select().from(devicesTable).where(eq(devicesTable.id, deviceId))
 }
 
 /**
  * Gets all devices for the current user from the local DB (synced via PowerSync).
  */
-export const getAllDevices = async (): Promise<Device[]> => {
-  const db = DatabaseSingleton.instance.db
-  const rows = await db.select().from(devicesTable).orderBy(desc(devicesTable.lastSeen))
-  return rows as Device[]
+export const getAllDevices = (db: AnyDrizzleDatabase) => {
+  const query = db.select().from(devicesTable).orderBy(desc(devicesTable.lastSeen))
+
+  return query as typeof query & { execute: () => Promise<Device[]> }
 }

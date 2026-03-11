@@ -1,5 +1,6 @@
+import { setupTestDatabase, teardownTestDatabase } from '@/dal/test-utils'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, mock, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -13,6 +14,14 @@ import {
   ExternalLinkDialogProvider,
   markdownComponents,
 } from './markdown-utils'
+
+beforeAll(async () => {
+  await setupTestDatabase()
+})
+
+afterAll(async () => {
+  await teardownTestDatabase()
+})
 
 const makeSources = (name: string): CitationSource[] => [
   { id: `src-${name}`, title: `${name} Article`, url: `https://${name}.com`, siteName: name, isPrimary: true },

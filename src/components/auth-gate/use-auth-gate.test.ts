@@ -1,9 +1,18 @@
 import type { AuthClient } from '@/contexts'
+import { setupTestDatabase, teardownTestDatabase } from '@/dal/test-utils'
 import { createMockAuthClient } from '@/test-utils/auth-client'
 import { createTestProvider } from '@/test-utils/test-provider'
-import { describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { renderHook } from '@testing-library/react'
 import { useAuthGate } from './use-auth-gate'
+
+beforeAll(async () => {
+  await setupTestDatabase()
+})
+
+afterAll(async () => {
+  await teardownTestDatabase()
+})
 
 const sessionWithUser = {
   user: { id: '1', email: 'u@example.com', name: 'User' },

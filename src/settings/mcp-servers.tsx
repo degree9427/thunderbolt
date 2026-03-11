@@ -16,25 +16,26 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createMcpServer, deleteMcpServer, getHttpMcpServers } from '@/dal'
-import { DatabaseSingleton } from '@/db/singleton'
+import { useDatabase } from '@/contexts'
 import { mcpServersTable } from '@/db/tables'
 import { useMcpSync } from '@/hooks/use-mcp-sync'
 import { type McpServer } from '@/types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
+import { useQuery } from '@powersync/tanstack-react-query'
 import { eq } from 'drizzle-orm'
 import { Check, Copy, Globe, Plus, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { v7 as uuidv7 } from 'uuid'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { createMCPClient } from '@ai-sdk/mcp'
+import { toCompilableQuery } from '@powersync/drizzle-driver'
 
 type ServerTools = {
   [serverId: string]: string[]
 }
 
 export default function McpServersPage() {
-  const db = DatabaseSingleton.instance.db
-  const queryClient = useQueryClient()
+  const db = useDatabase()
   const { servers: mcpServers } = useMcpSync()
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [newServerUrl, setNewServerUrl] = useState('')
@@ -50,7 +51,7 @@ export default function McpServersPage() {
   // TODO: Add support for stdio servers
   const { data: servers = [] } = useQuery({
     queryKey: ['mcp-servers'],
-    queryFn: getHttpMcpServers,
+    query: toCompilableQuery(getHttpMcpServers(db)),
   })
 
   // Fetch tools for connected servers
@@ -111,14 +112,11 @@ export default function McpServersPage() {
         .set({ enabled: enabled ? 1 : 0, updatedAt: new Date().toISOString() })
         .where(eq(mcpServersTable.id, id))
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mcp-servers'] })
-    },
   })
 
   const addServerMutation = useMutation({
     mutationFn: async ({ name, url }: { name: string; url: string }) => {
-      await createMcpServer({
+      await createMcpServer(db, {
         id: uuidv7(),
         name,
         url,
@@ -126,7 +124,6 @@ export default function McpServersPage() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mcp-servers'] })
       setIsAddDialogOpen(false)
       setNewServerUrl('')
       setConnectionStatus('idle')
@@ -135,9 +132,8 @@ export default function McpServersPage() {
   })
 
   const deleteServerMutation = useMutation({
-    mutationFn: deleteMcpServer,
+    mutationFn: (id: string) => deleteMcpServer(db, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mcp-servers'] })
       setDeleteConfirmOpen(null)
     },
   })
@@ -393,7 +389,7 @@ export default function McpServersPage() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div>
-                          <StatusIndicator status={status as any} size="md" />
+                          <StatusIndicator status={status as 'connected' | 'connecting' | 'disconnected'} size="md" />
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="bottom">

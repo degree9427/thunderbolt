@@ -1,9 +1,11 @@
+import { useDatabase } from '@/contexts'
 import { getDevice } from '@/dal'
 import { setSyncEnabled } from '@/db/powersync'
 import { powersyncCredentialsInvalid } from '@/db/powersync/connector'
 import { getAuthToken, getDeviceId } from '@/lib/auth-token'
 import { resetAppDir } from '@/lib/fs'
-import { useQuery } from '@tanstack/react-query'
+import { toCompilableQuery } from '@powersync/drizzle-driver'
+import { useQuery } from '@powersync/tanstack-react-query'
 import { useEffect, useRef } from 'react'
 
 /**
@@ -44,18 +46,21 @@ const performCredentialsInvalidReset = async (): Promise<void> => {
  * the account is deleted, sync wipes the DB so settings/cloudUrl disappear, AuthProvider
  * returns null and never renders children. If the listener lived under those children, it
  * would never run. By running it inside AuthProvider before the `if (!value) return null`,
- * the listener stays active and can trigger reset even when the rest of the app doesn’t
+ * the listener stays active and can trigger reset even when the rest of the app doesn't
  * render.
  */
 export const usePowerSyncCredentialsInvalidListener = (): void => {
+  const db = useDatabase()
   const hasTriggeredRef = useRef(false)
   const hadDeviceOnceRef = useRef(false)
   const deviceId = getDeviceId()
 
-  const { data: device, isFetched } = useQuery({
+  const { data = [], isFetched } = useQuery({
     queryKey: ['devices', deviceId],
-    queryFn: () => getDevice(deviceId),
+    query: toCompilableQuery(getDevice(db, deviceId)),
   })
+
+  const device = data[0] ?? null
 
   // Handle 410/403 from verify endpoint or PowerSync token refresh (event-driven).
   useEffect(() => {

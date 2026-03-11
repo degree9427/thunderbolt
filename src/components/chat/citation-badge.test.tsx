@@ -1,11 +1,20 @@
 import '@/testing-library'
+import { setupTestDatabase, teardownTestDatabase } from '@/dal/test-utils'
 import { render } from '@testing-library/react'
-import { describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { createTestProvider } from '@/test-utils/test-provider'
 import { CitationBadge } from './citation-badge'
 import { CitationPopoverProvider } from './citation-popover'
 import { ExternalLinkDialogProvider } from './markdown-utils'
 import type { CitationSource } from '@/types/citation'
+
+beforeAll(async () => {
+  await setupTestDatabase()
+})
+
+afterAll(async () => {
+  await teardownTestDatabase()
+})
 
 // Standalone mode (no provider) — CitationBadge owns its Popover/Sheet
 const renderStandalone = (ui: React.ReactElement) => {

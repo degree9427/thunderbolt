@@ -1,8 +1,10 @@
-import { AuthProvider, HttpClientProvider, type AuthClient } from '@/contexts'
+import { AuthProvider, DatabaseProvider, HttpClientProvider, type AuthClient } from '@/contexts'
+import { getDb } from '@/db/database'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { type ReactNode } from 'react'
 import { createMockAuthClient } from './auth-client'
 import { createMockHttpClient } from './http-client'
+import { PowerSyncMockProvider } from './powersync-mock'
 
 type TestProviderOptions = {
   mockResponse?: unknown
@@ -20,7 +22,8 @@ type TestProviderOptions = {
 
 /**
  * Creates a comprehensive test provider that wraps the React hierarchy with all necessary contexts for testing.
- * This includes React Query and HTTP Client providers with test-friendly defaults.
+ * This includes DatabaseProvider, PowerSync mock, React Query, and HTTP Client providers with test-friendly defaults.
+ * Requires setupTestDatabase() to have been called before use.
  *
  * @param options - Configuration options for the test provider
  * @param options.mockResponse - Mock response data for the HTTP client (defaults to empty array)
@@ -58,11 +61,15 @@ export const createTestProvider = (options?: TestProviderOptions) => {
 
   return ({ children }: { children: ReactNode }) => {
     return (
-      <QueryClientProvider client={queryClient}>
-        <HttpClientProvider httpClient={mockHttpClient}>
-          <AuthProvider authClient={mockAuthClient}>{children}</AuthProvider>
-        </HttpClientProvider>
-      </QueryClientProvider>
+      <DatabaseProvider db={getDb()}>
+        <PowerSyncMockProvider>
+          <QueryClientProvider client={queryClient}>
+            <HttpClientProvider httpClient={mockHttpClient}>
+              <AuthProvider authClient={mockAuthClient}>{children}</AuthProvider>
+            </HttpClientProvider>
+          </QueryClientProvider>
+        </PowerSyncMockProvider>
+      </DatabaseProvider>
     )
   }
 }

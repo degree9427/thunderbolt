@@ -10,7 +10,7 @@ import {
   ResponsiveModalTitle,
 } from '@/components/ui/responsive-modal'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { DatabaseSingleton } from '@/db/singleton'
+import { useDatabase } from '@/contexts'
 import { triggersTable } from '@/db/tables'
 import {
   createAutomation,
@@ -18,17 +18,20 @@ import {
   deleteTriggersForPrompt,
   getAllTriggersForPrompt,
   getAvailableModels,
-  getSelectedModel,
+  getSelectedModelQuery,
+  mapModel,
   updateAutomation,
 } from '@/dal'
 import { useSettings } from '@/hooks/use-settings'
 import { trackEvent } from '@/lib/posthog'
 import { generateTitle } from '@/lib/title-generator'
-import type { Model, Prompt } from '@/types'
+import type { Prompt } from '@/types'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
+import { useQuery } from '@powersync/tanstack-react-query'
+import { toCompilableQuery } from '@powersync/drizzle-driver'
 import { eq } from 'drizzle-orm'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { v7 as uuidv7 } from 'uuid'
 import { z } from 'zod'
@@ -56,18 +59,21 @@ export default function AutomationFormModal({
   prompt = null,
   onSuccess,
 }: AutomationFormModalProps) {
-  const db = DatabaseSingleton.instance.db
-  const queryClient = useQueryClient()
+  const db = useDatabase()
 
-  const { data: models = [] } = useQuery<Model[]>({
+  const { data = [] } = useQuery({
     queryKey: ['models', 'availableModels'],
-    queryFn: getAvailableModels,
+    query: toCompilableQuery(getAvailableModels(db)),
   })
 
-  const { data: selectedModel } = useQuery<Model>({
+  const models = useMemo(() => data.map(mapModel), [data])
+
+  const { data: selectedModelRows = [] } = useQuery({
     queryKey: ['models', 'selectedModel'],
-    queryFn: getSelectedModel,
+    query: toCompilableQuery(getSelectedModelQuery(db)),
   })
+
+  const selectedModel = selectedModelRows[0] ? mapModel(selectedModelRows[0]) : undefined
 
   const { isTriggersEnabled } = useSettings({
     is_triggers_enabled: false,
@@ -113,7 +119,7 @@ export default function AutomationFormModal({
       if (prompt) {
         // Load existing trigger data if editing
         const loadTriggerData = async () => {
-          const existingTriggers = await getAllTriggersForPrompt(prompt.id)
+          const existingTriggers = await getAllTriggersForPrompt(db, prompt.id)
           const trigger = existingTriggers[0] // Assuming one trigger per prompt
 
           const promptText = prompt.prompt
@@ -149,7 +155,7 @@ export default function AutomationFormModal({
         })
       }
     }
-  }, [isOpen, prompt, form, selectedModel, db])
+  }, [isOpen, prompt, form, selectedModel?.id, db])
 
   const createPromptMutation = useMutation({
     mutationFn: async (values: FormData) => {
@@ -157,7 +163,7 @@ export default function AutomationFormModal({
       const generatedTitle = generateTitle(values.prompt, { words: 4 })
 
       // Create the prompt with model and generated title
-      await createAutomation({
+      await createAutomation(db, {
         id: promptId,
         title: generatedTitle,
         prompt: values.prompt,
@@ -167,7 +173,7 @@ export default function AutomationFormModal({
 
       // Create trigger if specified and not manual
       if (values.triggerType === 'time' && values.triggerTime) {
-        await createTrigger({
+        await createTrigger(db, {
           id: uuidv7(),
           triggerType: values.triggerType,
           triggerTime: values.triggerTime,
@@ -181,7 +187,6 @@ export default function AutomationFormModal({
         model: values.modelId,
         triggerType: values.triggerType,
       })
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
       onOpenChange(false)
       onSuccess?.()
     },
@@ -194,14 +199,14 @@ export default function AutomationFormModal({
       }
 
       // Update the prompt with model and title
-      await updateAutomation(prompt.id, {
+      await updateAutomation(db, prompt.id, {
         title: values.title || null,
         prompt: values.prompt,
         modelId: values.modelId,
       })
 
       // Handle trigger updates when editing
-      const existingTriggers = await getAllTriggersForPrompt(prompt.id)
+      const existingTriggers = await getAllTriggersForPrompt(db, prompt.id)
       const hasNewTriggerData = values.triggerType === 'time' && values.triggerTime
 
       if (hasNewTriggerData) {
@@ -218,7 +223,7 @@ export default function AutomationFormModal({
             .where(eq(triggersTable.promptId, prompt.id))
         } else {
           // Create new trigger
-          await createTrigger({
+          await createTrigger(db, {
             id: uuidv7(),
             triggerType: 'time',
             triggerTime: values.triggerTime!,
@@ -229,7 +234,7 @@ export default function AutomationFormModal({
       } else {
         // User selected manual or removed trigger data, delete any existing triggers
         if (existingTriggers.length > 0) {
-          await deleteTriggersForPrompt(prompt.id)
+          await deleteTriggersForPrompt(db, prompt.id)
         }
       }
     },
@@ -239,8 +244,6 @@ export default function AutomationFormModal({
         old_model: prompt?.modelId,
         new_model: values.modelId,
       })
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
-      queryClient.invalidateQueries({ queryKey: ['triggers'] })
       onOpenChange(false)
       onSuccess?.()
     },

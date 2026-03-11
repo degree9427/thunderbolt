@@ -1,3 +1,4 @@
+import { getDb } from '@/db/database'
 import { useSettings } from '@/hooks/use-settings'
 import { getAllEnabledTriggers, runAutomation } from '@/dal'
 import { useEffect, useRef } from 'react'
@@ -17,7 +18,8 @@ export const useTriggerScheduler = () => {
       timers.current.forEach(clearTimeout)
       timers.current = []
 
-      const triggers = await getAllEnabledTriggers()
+      const db = getDb()
+      const triggers = await getAllEnabledTriggers(db)
 
       triggers.forEach((t) => {
         if (t.triggerTime) {
@@ -29,7 +31,7 @@ export const useTriggerScheduler = () => {
           }
           const delay = next.getTime() - Date.now()
           timers.current.push(
-            setTimeout(() => runAutomation(t.promptId).catch(console.error), delay) as unknown as number,
+            setTimeout(() => runAutomation(getDb(), t.promptId).catch(console.error), delay) as unknown as number,
           )
         }
       })

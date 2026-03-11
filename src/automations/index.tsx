@@ -23,15 +23,17 @@ import {
   resetAutomationToDefault,
   runAutomation,
 } from '@/dal'
-import { DatabaseSingleton } from '@/db/singleton'
+import { useDatabase } from '@/contexts'
 import { triggersTable } from '@/db/tables'
 import { defaultAutomations } from '@/defaults/automations'
 import { isAutomationModified } from '@/defaults/utils'
 import { useSettings } from '@/hooks/use-settings'
 import { trackEvent } from '@/lib/posthog'
 import { cn } from '@/lib/utils'
-import type { Prompt, Trigger } from '@/types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Prompt } from '@/types'
+import { useMutation } from '@tanstack/react-query'
+import { useQuery } from '@powersync/tanstack-react-query'
+import { toCompilableQuery } from '@powersync/drizzle-driver'
 import { eq } from 'drizzle-orm'
 import { Pen, Play, Plus, Search, Trash2 } from 'lucide-react'
 import { memo, useEffect, useState } from 'react'
@@ -39,7 +41,7 @@ import { useNavigate } from 'react-router'
 import AutomationFormModal from './automation-form-modal'
 
 export default function AutomationsPage() {
-  const queryClient = useQueryClient()
+  const db = useDatabase()
   const navigate = useNavigate()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null)
@@ -49,7 +51,7 @@ export default function AutomationsPage() {
 
   const { data: prompts = [], isLoading } = useQuery({
     queryKey: ['prompts', debouncedSearchQuery],
-    queryFn: () => getAllPrompts(debouncedSearchQuery),
+    query: toCompilableQuery(getAllPrompts(db, debouncedSearchQuery)),
     placeholderData: (previousData) => previousData,
   })
 
@@ -58,10 +60,9 @@ export default function AutomationsPage() {
   })
 
   const deletePromptMutation = useMutation({
-    mutationFn: deleteAutomation,
+    mutationFn: (id: string) => deleteAutomation(db, id),
     onSuccess: () => {
       trackEvent('automation_delete_confirmed', { automation_id: deletingPromptId })
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
       setDeletingPromptId(null)
     },
   })
@@ -70,8 +71,8 @@ export default function AutomationsPage() {
     try {
       const prompt = prompts.find((p) => p.id === promptId)
 
-      const threadId = await runAutomation(promptId)
-      queryClient.invalidateQueries({ queryKey: ['chatThreads'] })
+      const threadId = await runAutomation(db, promptId)
+
       navigate(`/chats/${threadId}`)
       trackEvent('automation_run', {
         automation_id: promptId,
@@ -96,10 +97,9 @@ export default function AutomationsPage() {
   const handleResetPrompt = async (promptId: string) => {
     const defaultAutomation = defaultAutomations.find((d) => d.id === promptId)
     if (defaultAutomation) {
-      await resetAutomationToDefault(promptId, defaultAutomation)
+      await resetAutomationToDefault(db, promptId, defaultAutomation)
       // TODO: Add 'automation_reset_to_default' to EventType
       // trackEvent('automation_reset_to_default', { automation_id: promptId })
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
     }
   }
 
@@ -243,15 +243,12 @@ type PromptCardProps = {
 }
 
 const PromptCard = memo(({ prompt, triggersEnabled, onRun, onEdit, onDelete, onReset }: PromptCardProps) => {
-  const db = DatabaseSingleton.instance.db
-  const queryClient = useQueryClient()
+  const db = useDatabase()
 
-  // Query triggers for this prompt
+  // Query triggers for this prompt via PowerSync for reactive/live updates
   const { data: triggers = [] } = useQuery({
     queryKey: ['triggers', prompt.id],
-    queryFn: async (): Promise<Trigger[]> => {
-      return getAllTriggersForPrompt(prompt.id)
-    },
+    query: toCompilableQuery(getAllTriggersForPrompt(db, prompt.id)),
   })
 
   // For now, use the first trigger's enabled state, or true if no triggers
@@ -271,9 +268,6 @@ const PromptCard = memo(({ prompt, triggersEnabled, onRun, onEdit, onDelete, onR
           .set({ isEnabled: enabled ? 1 : 0 })
           .where(eq(triggersTable.id, primaryTrigger.id))
       }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['triggers', prompt.id] })
     },
   })
 

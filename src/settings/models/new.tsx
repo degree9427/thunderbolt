@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { v7 as uuidv7 } from 'uuid'
@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useDatabase } from '@/contexts'
 import { createModel } from '@/dal'
 import type { Model } from '@/types'
 
@@ -50,20 +51,19 @@ const formSchema = z
   )
 
 export default function NewModelPage() {
+  const db = useDatabase()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
 
   const createModelMutation = useMutation({
     mutationFn: async (model: Omit<Model, 'id'>) => {
       const id = uuidv7()
-      await createModel({
+      await createModel(db, {
         id,
         ...model,
       })
       return id
     },
     onSuccess: (id) => {
-      queryClient.invalidateQueries({ queryKey: ['models'] })
       navigate(`/settings/models/${id}`)
     },
   })

@@ -1,3 +1,4 @@
+import { useDatabase } from '@/contexts'
 import {
   getAllModes,
   getAvailableModels,
@@ -8,6 +9,7 @@ import {
   getSettings,
   getTriggerPromptForThread,
   isChatThreadDeleted,
+  mapModel,
   saveMessagesWithContextUpdate,
 } from '@/dal'
 import { getOrCreateChatThread, updateChatThread } from '@/dal/chat-threads'
@@ -15,7 +17,6 @@ import { useMCP } from '@/lib/mcp-provider'
 import { generateTitle } from '@/lib/title-generator'
 import { convertDbChatMessageToUIMessage } from '@/lib/utils'
 import type { SaveMessagesFunction, ThunderboltUIMessage } from '@/types'
-import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useChatStore } from './chat-store'
@@ -27,13 +28,12 @@ type UseHydrateChatStoreParams = {
 }
 
 export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) => {
+  const db = useDatabase()
   const navigate = useNavigate()
 
   const [isReady, setIsReady] = useState(false)
 
   const { getEnabledClients } = useMCP()
-
-  const queryClient = useQueryClient()
 
   const updateThreadTitle = async (messages: ThunderboltUIMessage[], threadId: string) => {
     const firstUserMessage = messages.find((msg) => msg.role === 'user')
@@ -51,10 +51,7 @@ export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) =>
     }
 
     const title = await generateTitle(textContent)
-    await updateChatThread(threadId, { title })
-
-    // Also invalidate chat threads to update the sidebar
-    queryClient.invalidateQueries({ queryKey: ['chatThreads'] })
+    await updateChatThread(db, threadId, { title })
   }
 
   const saveMessages: SaveMessagesFunction = async ({ id, messages }) => {
@@ -67,13 +64,10 @@ export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) =>
     }
 
     // Fetch thread info to check if we need to generate a title
-    const thread = await getOrCreateChatThread(id, session.selectedModel.id)
+    const thread = await getOrCreateChatThread(db, id, session.selectedModel.id)
 
     // Save messages and update context size using DAL
-    await saveMessagesWithContextUpdate(id, messages)
-
-    // Invalidate context size query to trigger re-fetch
-    queryClient.invalidateQueries({ queryKey: ['contextSize', id] })
+    await saveMessagesWithContextUpdate(db, id, messages)
 
     // Generate title in background if needed
     if (thread?.title === 'New Chat') {
@@ -90,7 +84,7 @@ export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) =>
     const { createSession, sessions, setCurrentSessionId, setMcpClients, setModes, setModels } = useChatStore.getState()
 
     // Check if this ID belongs to a deleted chat - redirect to 404 if so
-    const isDeleted = await isChatThreadDeleted(id)
+    const isDeleted = await isChatThreadDeleted(db, id)
     if (isDeleted) {
       navigate('/not-found', { replace: true })
       return
@@ -100,11 +94,15 @@ export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) =>
     if (sessions.has(id)) {
       setCurrentSessionId(id)
 
-      const [modes, models, mcpClients] = await Promise.all([getAllModes(), getAvailableModels(), getEnabledClients()])
+      const [modes, models, mcpClients] = await Promise.all([
+        getAllModes(db),
+        getAvailableModels(db),
+        getEnabledClients(),
+      ])
 
       setMcpClients(mcpClients)
       setModes(modes)
-      setModels(models)
+      setModels(models.map(mapModel))
 
       setIsReady(true)
 
@@ -112,17 +110,17 @@ export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) =>
     }
 
     // If the session does not exist, create it below
-    const settings = await getSettings({ selected_model: String })
+    const settings = await getSettings(db, { selected_model: String })
 
     const [defaultModel, selectedMode, chatThread, initialMessages, modes, models, triggerData, mcpClients] =
       await Promise.all([
-        getDefaultModelForThread(id, settings.selectedModel ?? undefined),
-        getSelectedMode(),
-        getChatThread(id),
-        getChatMessages(id),
-        getAllModes(),
-        getAvailableModels(),
-        getTriggerPromptForThread(id),
+        getDefaultModelForThread(db, id, settings.selectedModel ?? undefined),
+        getSelectedMode(db),
+        getChatThread(db, id),
+        getChatMessages(db, id),
+        getAllModes(db),
+        getAvailableModels(db),
+        getTriggerPromptForThread(db, id),
         getEnabledClients(),
       ])
 
@@ -153,7 +151,7 @@ export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) =>
 
     setMcpClients(mcpClients)
     setModes(modes)
-    setModels(models)
+    setModels(models.map(mapModel))
 
     setIsReady(true)
   }

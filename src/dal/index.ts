@@ -6,10 +6,13 @@ export {
   getAvailableModels,
   getDefaultModelForThread,
   getModel,
+  getModelQuery,
   getSelectedModel,
+  getSelectedModelQuery,
   getSystemModel,
   resetModelToDefault,
   updateModel,
+  mapModel,
 } from './models'
 
 // Settings
