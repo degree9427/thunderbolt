@@ -167,11 +167,6 @@ cp .thunderbot/thunderfix.md .claude/commands/thunderfix.md
 # now edit .claude/commands/thunderfix.md
 ```
 
-To go back to the upstream version, re-create the symlink:
-
-```bash
-ln -sf ../../.thunderbot/thunderfix.md .claude/commands/thunderfix.md
-```
 
 ## FAQ
 
